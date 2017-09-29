@@ -58,6 +58,7 @@ func startWebhook() func() {
 
 		server.Handler = mux
 
+		fmt.Println("Listening to GitLab webhooks at", *gitlabListenAddr+*gitlabListenPath)
 		err := server.ListenAndServe()
 		if err != nil {
 			fmt.Println(err)

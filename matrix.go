@@ -36,7 +36,7 @@ func startMatrix() func() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connected to", *homeserver, "as", *username)
+	fmt.Println("Connected to Matrix homeserver at", *homeserver, "as", *username)
 
 	stop := make(chan bool, 1)
 

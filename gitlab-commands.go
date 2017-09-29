@@ -35,6 +35,11 @@ func initGitlabClient() {
 	if err != nil {
 		panic(err)
 	}
+	user, _, err := git.Users.CurrentUser()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Logged into GitLab at %s as %s\n", git.BaseURL().Hostname(), user.Name)
 }
 
 func handleGitlabCommand(room *mautrix.Room, command string, args ...string) {
@@ -59,5 +64,14 @@ func handleGitlabCommand(room *mautrix.Room, command string, args ...string) {
 			commit.AuthorName,
 			commit.CommittedDate.Format("Jan _2, 2006 15:04:05"),
 			strings.Replace(commit.Message, "\n", "<br/>", -1)))
+	case "help":
+		room.SendHTML(`<pre>
+Commands are prefixed with !gitlab
+- ping                 - Ping the bot
+- commit &lt;repo&gt; &lt;hash&gt; - Get details about a specific commit
+- help                 - Show this help page.
+</pre>`)
+	default:
+		room.Send("Unknown command. Type !gitlab help for help.")
 	}
 }
