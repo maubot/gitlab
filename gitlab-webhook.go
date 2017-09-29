@@ -73,8 +73,6 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	roomID := header["X-Room-Id"][0]
 	room := mxbot.GetRoom(roomID)
 
-	var msg bytes.Buffer
-
 	branch := strings.TrimPrefix(data.Ref, "refs/heads/")
 	if data.TotalCommitsCount == 0 {
 		room.SendHTML(fmt.Sprintf(
@@ -91,23 +89,32 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	if data.TotalCommitsCount != 1 {
 		pluralizer = "s"
 	}
-	fmt.Fprintf(&msg,
-		"[<a href='%[1]s/tree/%[2]s'>%[3]s/%[4]s#%[2]s</a>] %[5]d new commit%[7]s by %[6]s<br/>\n",
+	room.SendHTML(fmt.Sprintf(
+		"[<a href='%[1]s/tree/%[2]s'>%[3]s/%[4]s#%[2]s</a>] %[5]d new commit%[7]s by %[6]s",
 		data.Project.WebURL,
 		branch,
 		data.Project.Namespace,
 		data.Project.Name,
 		data.TotalCommitsCount,
 		data.UserName,
-		pluralizer)
-	fmt.Fprintln(&msg, "<ul>")
-	for i := len(data.Commits) - 1; i >= 0; i-- {
-		commit := data.Commits[i]
-		fmt.Fprintf(&msg, "<li>%s (%s)</li>\n", strings.Split(commit.Message, "\n")[0], commit.ID[:8])
+		pluralizer))
+	// IRC compatibility: Allow up to 4 commits to be displayed through the IRC bridge without
+	// 					  having the bridge turn the message into a link.
+	if data.TotalCommitsCount > 4 {
+		var msg bytes.Buffer
+		fmt.Fprintln(&msg, "<ul>")
+		for i := len(data.Commits) - 1; i >= 0; i-- {
+			commit := data.Commits[i]
+			fmt.Fprintf(&msg, "<li>%s (%s)</li>\n", strings.Split(commit.Message, "\n")[0], commit.ID[:8])
+		}
+		fmt.Fprintln(&msg, "</ul>")
+		room.SendHTML(msg.String())
+	} else {
+		for i := len(data.Commits) - 1; i >= 0; i-- {
+			commit := data.Commits[i]
+			room.SendHTML(fmt.Sprintf("<ul><li>%s (%s)</li></ul>", strings.Split(commit.Message, "\n")[0], commit.ID[:8]))
+		}
 	}
-	fmt.Fprintln(&msg, "</ul>")
-
-	room.SendHTML(msg.String())
 }
 
 func handleIssueEvent(payload interface{}, header webhooks.Header) {
