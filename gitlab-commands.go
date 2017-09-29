@@ -25,7 +25,7 @@ import (
 	"maunium.net/go/mautrix"
 )
 
-var gitlabToken = flag.MakeFull("t", "token", "GitLab access token", "").String()
+var gitlabToken = flag.MakeFull("t", "gitlab-token", "GitLab access token", "").String()
 var gitlabDomain = flag.MakeFull("d", "gitlab-domain", "GitLab domain", "https://gitlab.com").String()
 var git *gitlab.Client
 

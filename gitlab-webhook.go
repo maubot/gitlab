@@ -27,9 +27,9 @@ import (
 	flag "maunium.net/go/mauflag"
 )
 
-var gitlabListenAddr = flag.MakeFull("l", "gitlab", "GitLab listen address", ":8080").String()
-var gitlabListenPath = flag.MakeFull("g", "gitlab-path", "GitLab listen path", "/webhooks").String()
-var gitlabSecret = flag.MakeFull("e", "secret", "GitLab secret", "").String()
+var gitlabListenAddr = flag.MakeFull("l", "webhook-listen", "GitLab listen address", ":8080").String()
+var gitlabListenPath = flag.MakeFull("g", "webhook-path", "GitLab listen path", "/webhooks").String()
+var gitlabSecret = flag.MakeFull("e", "webhook-secret", "GitLab secret", "").String()
 
 func addRoomToHeaders(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
