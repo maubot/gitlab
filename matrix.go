@@ -55,7 +55,14 @@ func startMatrix() func() {
 					if !strings.HasPrefix(msg, "!gitlab") {
 						continue
 					}
-					evt.Room.Send("Highlight")
+					msg = strings.TrimPrefix(msg, "!gitlab ")
+					parts := strings.Split(msg, " ")
+					cmd := parts[0]
+					var args []string
+					if len(parts) > 1 {
+						args = parts[1:]
+					}
+					handleGitlabCommand(evt.Room, cmd, args...)
 				}
 			case roomID := <-mxbot.InviteChan:
 				invite := mxbot.Invites[roomID]
