@@ -11,5 +11,8 @@
 		"homeserver": "https://matrix.org",
 		"username": "",
 		"password": ""
+	},
+	"options": {
+		"irc-compatibility": false
 	}
 }

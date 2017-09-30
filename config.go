@@ -39,6 +39,10 @@ type Config struct {
 	GitLab struct {
 		Domain string `json:"domain"`
 	} `json:"gitlab"`
+
+	Options struct {
+		IRCCompatibility bool `json:"irc-compatibility"`
+	} `json:"options"`
 }
 
 var config Config

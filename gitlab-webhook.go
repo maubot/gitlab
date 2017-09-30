@@ -96,7 +96,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 		pluralizer)
 	// IRC compatibility: Allow up to 4 commits to be displayed through the IRC bridge without
 	// 					  having the bridge turn the message into a link.
-	if data.TotalCommitsCount > 4 {
+	if data.TotalCommitsCount > 4 || !config.Options.IRCCompatibility {
 		var msg bytes.Buffer
 		fmt.Fprintln(&msg, "<ul>")
 		for i := len(data.Commits) - 1; i >= 0; i-- {
