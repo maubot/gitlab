@@ -34,14 +34,4 @@ You should log in with your GitLab access token, since most commands require
 authentication. You can log in by sending `!gitlab login <access token>` to the
 bot in a private room.
 
-The bot only handles commands prefixed with `!gitlab`. Command help page:
-```
-- ping                  - Ping the bot.
-- show <repo> <hash>    - Get details about a specific commit.
-- diff <repo> <hash>    - Get the diff of a specific commit.
-- log <repo> [n] [page] - Get the log of a specific repo.
-- whoami                - Check who you're logged in as.
-- logout                - Remove your GitLab access token from storage.
-- login <token>         - Add a GitLab access token to storage.
-- help                  - Show this help page.
-```
+The bot only handles commands prefixed with `!gitlab`. Use `!gitlab help` for help.
