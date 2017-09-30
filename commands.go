@@ -79,8 +79,7 @@ func commandLogout(git *gitlab.Client, room *mautrix.Room, sender string, args .
 
 func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
 	if git != nil {
-		room.SendHTML(`<pre>
-Commands are prefixed with !gitlab
+		room.SendHTML(`<pre><code>Commands are prefixed with !gitlab
 - ping                  - Ping the bot.
 - show &lt;repo&gt; &lt;hash&gt;    - Get details about a specific commit.
 - diff &lt;repo&gt; &lt;hash&gt;    - Get the diff of a specific commit.
@@ -89,16 +88,15 @@ Commands are prefixed with !gitlab
 - logout                - Remove your GitLab access token from storage.
 - login &lt;token&gt;         - Add a GitLab access token to storage.
 - help                  - Show this help page.
-</pre>`)
+</code></pre>`)
 	} else {
 		room.SendHTML(`<b>You're not logged in.</b><br/>
-<pre>
-Commands are prefixed with !gitlab
+<pre><code>Commands are prefixed with !gitlab
 - ping          - Ping the bot.
 - server        - Get the server this bot uses.
 - login &lt;token&gt; - Add a GitLab access token to storage.
 - help          - Show this help page.
-</pre>`)
+</code></pre>`)
 	}
 }
 
