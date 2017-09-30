@@ -17,7 +17,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/xanzy/go-gitlab"
@@ -44,6 +47,8 @@ var Commands = map[string]GitlabCommand{
 	"login":  commandLogin,
 	"logout": commandLogout,
 	"show":   commandShow,
+	"diff":   commandDiff,
+	"log":    commandLog,
 	"whoami": commandWhoami,
 	"help":   commandHelp,
 }
@@ -76,12 +81,14 @@ func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 	if git != nil {
 		room.SendHTML(`<pre>
 Commands are prefixed with !gitlab
-- ping               - Ping the bot.
-- show &lt;repo&gt; &lt;hash&gt; - Get details about a specific commit.
-- whoami             - Check who you're logged in as.
-- logout             - Remove your GitLab access token from storage.
-- login      &lt;token&gt; - Add a GitLab access token to storage.
-- help               - Show this help page.
+- ping                  - Ping the bot.
+- show &lt;repo&gt; &lt;hash&gt;    - Get details about a specific commit.
+- diff &lt;repo&gt; &lt;hash&gt;    - Get the diff of a specific commit.
+- log &lt;repo&gt; [n] [page] - Get the log of a specific repo.
+- whoami                - Check who you're logged in as.
+- logout                - Remove your GitLab access token from storage.
+- login &lt;token&gt;         - Add a GitLab access token to storage.
+- help                  - Show this help page.
 </pre>`)
 	} else {
 		room.SendHTML(`<b>You're not logged in.</b><br/>
@@ -127,4 +134,75 @@ func commandShow(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 		commit.AuthorName,
 		commit.CommittedDate.Format("Jan _2, 2006 15:04:05"),
 		strings.Replace(commit.Message, "\n", "<br/>", -1))
+}
+
+var diffLocationRegex = regexp.MustCompile("(@@ -[0-9]+,[0-9]+ \\+[0-9]+,[0-9]+ @@)")
+
+func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+	if len(args) < 2 {
+		room.SendHTML("Usage: <code>!gitlab diff &lt;repo&gt; &lt;hash&gt;</code>")
+		return
+	}
+
+	diffs, _, err := git.Commits.GetCommitDiff(args[0], args[1])
+	if err != nil {
+		room.Sendf("An error occurred: %s", err)
+		return
+	}
+	var buf bytes.Buffer
+	for _, diff := range diffs {
+		fmt.Fprintf(&buf, "<pre>")
+		for _, line := range strings.Split(diff.Diff, "\n") {
+			if strings.HasPrefix(line, "@@") {
+				line = diffLocationRegex.ReplaceAllString(line, "<font color='#00A'>$1</font>")
+			}
+			if strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---") {
+				fmt.Fprintf(&buf, "<font color='#000'>%s</font>", line)
+			} else if strings.HasPrefix(line, "+") {
+				fmt.Fprintf(&buf, "<font color='#0A0'>%s</font>", line)
+			} else if strings.HasPrefix(line, "-") {
+				fmt.Fprintf(&buf, "<font color='#A00'>%s</font>", line)
+			} else {
+				fmt.Fprintf(&buf, "<font color='#666'>%s</font>", line)
+			}
+			fmt.Fprintf(&buf, "\n")
+		}
+		fmt.Fprintf(&buf, "</pre>")
+	}
+	room.SendHTML(buf.String())
+}
+
+func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+	if len(args) == 0 {
+		room.SendHTML("Usage: <code>!gitlab log &lt;repo&gt; [n] [page]</code>")
+		return
+	}
+
+	n := 10
+	page := 1
+	if len(args) > 1 {
+		n, _ = strconv.Atoi(args[1])
+	}
+	if len(args) > 2 {
+		page, _ = strconv.Atoi(args[2])
+	}
+	commits, _, err := git.Commits.ListCommits(args[0], &gitlab.ListCommitsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: n,
+			Page:    page,
+		},
+	})
+	if err != nil {
+		room.Sendf("An error occurred: %s", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	for _, commit := range commits {
+		fmt.Fprintf(&buf, "<font color='#AA0'>%s</font> %s<br/>\n",
+			commit.ShortID,
+			strings.Split(commit.Message, "\n")[0])
+	}
+
+	room.SendHTML(buf.String())
 }

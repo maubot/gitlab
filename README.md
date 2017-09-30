@@ -11,4 +11,5 @@ Features
 	* [ ] Create/close/reopen issues
 	* [ ] Read comments on issues
 	* [ ] Comment on issues
-* [ ] View changes in commit
+* [x] View changes in commit
+* [x] View commit history
