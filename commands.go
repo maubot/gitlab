@@ -151,7 +151,7 @@ func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 	}
 	var buf bytes.Buffer
 	for _, diff := range diffs {
-		fmt.Fprintf(&buf, "<pre>")
+		fmt.Fprintf(&buf, "<pre><code>")
 		for _, line := range strings.Split(diff.Diff, "\n") {
 			if strings.HasPrefix(line, "@@") {
 				line = diffLocationRegex.ReplaceAllString(line, "<font color='#00A'>$1</font>")
@@ -167,7 +167,7 @@ func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 			}
 			fmt.Fprintf(&buf, "\n")
 		}
-		fmt.Fprintf(&buf, "</pre>")
+		fmt.Fprintf(&buf, "</code></pre>")
 	}
 	room.SendHTML(buf.String())
 }
