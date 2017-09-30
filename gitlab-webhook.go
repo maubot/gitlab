@@ -101,9 +101,10 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 		fmt.Fprintln(&msg, "<ul>")
 		for i := len(data.Commits) - 1; i >= 0; i-- {
 			commit := data.Commits[i]
-			message := commit.Message
-			if strings.Contains(message, "\n") {
-				message = fmt.Sprintf("%s (...)", strings.Split(message, "\n")[0])
+			lines := strings.Split(commit.Message, "\n")
+			message := lines[0]
+			if len(lines) > 1 && len(strings.Join(lines[1:], "")) > 0 {
+				message += " (...)"
 			}
 			fmt.Fprintf(&msg, "<li>%s (%s)</li>\n", message, commit.ID[:8])
 		}
@@ -112,9 +113,10 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	} else {
 		for i := len(data.Commits) - 1; i >= 0; i-- {
 			commit := data.Commits[i]
-			message := commit.Message
-			if strings.Contains(message, "\n") {
-				message = fmt.Sprintf("%s (...)", strings.Split(message, "\n")[0])
+			lines := strings.Split(commit.Message, "\n")
+			message := lines[0]
+			if len(lines) > 1 && len(strings.Join(lines[1:], "")) > 0 {
+				message += " (...)"
 			}
 			room.SendfHTML("<ul><li>%s (%s)</li></ul>", message, commit.ID[:8])
 		}
