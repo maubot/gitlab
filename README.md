@@ -7,9 +7,16 @@ A Gitlab bot for Matrix. It uses
 
 ## Features
 * [x] Spam a Matrix room using GitLab webhooks
+	* [X] Issues/merge requests
+		* [X] Comments
+	* [X] Push events
+	* [ ] Tag creation
+	* [ ] Pipeline events
+	* [ ] Wiki page edits
 * [x] Log in to GitLab accounts (per-user)
+	* [ ] [Maybe] Allow logging in to multiple GitLab servers and add a per-room config of which server to use in that room by default.
 * [x] Commits
-  * [x] View full commit messages
+	* [x] View full commit messages
 	* [x] View commit diffs
 	* [x] View commit history
 * [x] Issue management
