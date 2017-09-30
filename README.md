@@ -7,7 +7,7 @@ Features
 * [x] Log in to GitLab accounts (per-user)
 * [x] View full commit messages
 * [ ] Issue management
-  * [ ] Read issues
+	* [ ] Read issues
 	* [ ] Create/close/reopen issues
 	* [ ] Read comments on issues
 	* [ ] Comment on issues
