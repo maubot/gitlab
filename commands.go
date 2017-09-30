@@ -50,8 +50,9 @@ var Commands = map[string]GitlabCommand{
 	"diff":   commandDiff,
 	"log":    commandLog,
 	"whoami": commandWhoami,
-	"issue":  commandIssue,
 	"help":   commandHelp,
+	"issue":  commandIssue,
+	"create": commandCreateIssue,
 }
 
 func commandPing(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
@@ -83,7 +84,7 @@ func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args []s
 		if len(args) > 0 {
 			if args[0] == "issue" {
 				room.SendHTML(`<pre><code>Commands are prefixed with !gitlab issue
-- open &lt;repo&gt; &lt;title&gt;           - Open an issue. The issue body can be placed on a new line.
+- create &lt;repo&gt; &lt;title&gt;         - Create an issue. The issue body can be placed on a new line.
 - close &lt;repo&gt; &lt;id&gt;             - Close an issue.
 - comment &lt;repo&gt; &lt;id&gt; &lt;message&gt; - Comment on an issue.
 - read &lt;repo&gt; &lt;id&gt;              - Read an issue.
@@ -219,6 +220,51 @@ func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args []st
 	room.SendHTML(buf.String())
 }
 
+func commandReadIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
+	if len(args) < 2 {
+		room.Send("Usage: !gitlab issue read <repo> <issue id>")
+		return
+	}
+
+	id, err := strconv.Atoi(args[1])
+	if err != nil {
+		room.Send("Usage: !gitlab issue read <repo> <issue id>")
+		return
+	}
+
+	issue, _, err := git.Issues.GetIssue(args[0], id)
+	if err != nil {
+		room.Sendf("An error occurred: %s", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "Issue #%[2]d by %[3]s: <a href='%[1]s'>%[4]s</a>.", issue.WebURL, issue.IID, issue.Author.Name, issue.Title)
+	if len(issue.Assignee.Name) > 0 {
+		fmt.Fprintf(&buf, " Assigned to %s.", issue.Assignee.Name)
+	}
+	fmt.Fprintf(&buf, "<br/>\n<blockquote>%s</blockquote><br/>\n", strings.Replace(issue.Description, "\n", "<br/>\n", -1))
+	room.SendHTML(buf.String())
+}
+
+func commandCreateIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
+	if len(args) < 2 {
+		room.Send("Usage: !gitlab issue create <repo> <title> \\n <body>")
+		return
+	}
+
+	title := strings.Join(args[1:], " ")
+	description := strings.Join(lines, "\n")
+
+	_, _, err := git.Issues.CreateIssue(args[0], &gitlab.CreateIssueOptions{
+		Title:       &title,
+		Description: &description,
+	})
+	if err != nil {
+		room.Sendf("Failed to create issue: %s", err)
+	}
+}
+
 func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) == 0 {
 		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
@@ -238,48 +284,11 @@ func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []
 	case "view":
 		fallthrough
 	case "read":
-		if len(args) < 2 {
-			room.Send("Usage: !gitlab issue read <repo> <issue id>")
-			return
-		}
-
-		id, err := strconv.Atoi(args[1])
-		if err != nil {
-			room.Send("Usage: !gitlab issue read <repo> <issue id>")
-			return
-		}
-
-		issue, _, err := git.Issues.GetIssue(args[0], id)
-		if err != nil {
-			room.Sendf("An error occurred: %s", err)
-			return
-		}
-
-		var buf bytes.Buffer
-		fmt.Fprintf(&buf, "Issue #%[2]d by %[3]s: <a href='%[1]s'>%[4]s</a>.", issue.WebURL, issue.IID, issue.Author.Name, issue.Title)
-		if len(issue.Assignee.Name) > 0 {
-			fmt.Fprintf(&buf, " Assigned to %s.", issue.Assignee.Name)
-		}
-		fmt.Fprintf(&buf, "<br/>\n<blockquote>%s</blockquote><br/>\n", strings.Replace(issue.Description, "\n", "<br/>\n", -1))
-		room.SendHTML(buf.String())
-	case "create":
-		fallthrough
+		commandReadIssue(git, room, sender, args, lines)
 	case "open":
-		if len(args) < 2 {
-			room.Send("Usage: !gitlab issue open <repo> <title> \\n <body>")
-			return
-		}
-
-		title := strings.Join(args[1:], " ")
-		description := strings.Join(lines, "\n")
-
-		_, _, err := git.Issues.CreateIssue(args[0], &gitlab.CreateIssueOptions{
-			Title:       &title,
-			Description: &description,
-		})
-		if err != nil {
-			room.Sendf("Failed to create issue: %s", err)
-		}
+		fallthrough
+	case "create":
+		commandCreateIssue(git, room, sender, args, lines)
 	case "close":
 		fallthrough
 	case "reopen":
