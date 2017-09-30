@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	flag "maunium.net/go/mauflag"
 )
@@ -59,4 +60,5 @@ func main() {
 	// Stop everything
 	stopMatrix()
 	stopWebhook()
+	time.Sleep(1 * time.Second)
 }
