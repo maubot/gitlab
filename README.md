@@ -1,6 +1,9 @@
 Maunium GitLab bot
 ==================
-A Gitlab bot for Matrix
+A Gitlab bot for Matrix. It uses
+[mautrix](https://github.com/tulir/mautrix),
+[go-playground webhooks](https://github.com/go-playground/webhooks) and
+[go-gitlab](https://github.com/xanzy/go-gitlab)
 
 ## Features
 * [x] Spam a Matrix room using GitLab webhooks
