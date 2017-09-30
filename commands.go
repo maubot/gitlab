@@ -28,17 +28,17 @@ import (
 )
 
 // UnknownCommand handles unknown !gitlab commands.
-func UnknownCommand(git *gitlab.Client, room *mautrix.Room, sender, command string, args ...string) {
+func UnknownCommand(git *gitlab.Client, room *mautrix.Room, sender, command string, args []string) {
 	room.SendHTML("Unknown command. Type <code>!gitlab help</code> for help.")
 }
 
 // AuthOnlyCommand handles !gitlab commands that require authentication when the user hasn't logged in.
-func AuthOnlyCommand(room *mautrix.Room, sender, command string, args ...string) {
+func AuthOnlyCommand(room *mautrix.Room, sender, command string, args []string) {
 	room.SendHTML("That command can only be used if you're logged in.\nTry <code>!gitlab login &lt;access token&gt;</code>")
 }
 
 // GitlabCommand is a function that handles a !gitlab command.
-type GitlabCommand func(git *gitlab.Client, room *mautrix.Room, sender string, args ...string)
+type GitlabCommand func(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string)
 
 // Commands contains all the normal !gitlab commands.
 var Commands = map[string]GitlabCommand{
@@ -50,18 +50,19 @@ var Commands = map[string]GitlabCommand{
 	"diff":   commandDiff,
 	"log":    commandLog,
 	"whoami": commandWhoami,
+	"issue":  commandIssue,
 	"help":   commandHelp,
 }
 
-func commandPing(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandPing(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	room.Send("Pong.")
 }
 
-func commandServer(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandServer(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	room.Sendf("I'm using the GitLab server at %s", config.GitLab.Domain)
 }
 
-func commandLogin(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandLogin(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if git != nil {
 		room.Send("You're already logged in.")
 		return
@@ -72,14 +73,26 @@ func commandLogin(git *gitlab.Client, room *mautrix.Room, sender string, args ..
 	room.Send(loginGitlab(sender, args[0]))
 }
 
-func commandLogout(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandLogout(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	logoutGitlab(sender)
 	room.Send("Access token removed successfully.")
 }
 
-func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if git != nil {
-		room.SendHTML(`<pre><code>Commands are prefixed with !gitlab
+		if len(args) > 0 {
+			if args[0] == "issue" {
+				room.SendHTML(`<pre><code>Commands are prefixed with !gitlab issue
+- open &lt;repo&gt; &lt;title&gt;           - Open an issue. The issue body can be placed on a new line.
+- close &lt;repo&gt; &lt;id&gt;             - Close an issue.
+- comment &lt;repo&gt; &lt;id&gt; &lt;message&gt; - Comment on an issue.
+- read &lt;repo&gt; &lt;id&gt;              - Read an issue.
+- read-comments &lt;repo&gt; &lt;id&gt;     - Read comments on an issue.
+</code></pre>`)
+				return
+			}
+		}
+		fmt.Println(room.SendHTML(`<pre><code>Commands are prefixed with !gitlab
 - ping                  - Ping the bot.
 - show &lt;repo&gt; &lt;hash&gt;    - Get details about a specific commit.
 - diff &lt;repo&gt; &lt;hash&gt;    - Get the diff of a specific commit.
@@ -87,8 +100,9 @@ func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 - whoami                - Check who you're logged in as.
 - logout                - Remove your GitLab access token from storage.
 - login &lt;token&gt;         - Add a GitLab access token to storage.
+- issue &lt;...&gt;           - Manage issues. Type !gitlab help issue for details.
 - help                  - Show this help page.
-</code></pre>`)
+</code></pre>`))
 	} else {
 		room.SendHTML(`<b>You're not logged in.</b><br/>
 <pre><code>Commands are prefixed with !gitlab
@@ -100,7 +114,7 @@ func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 	}
 }
 
-func commandWhoami(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandWhoami(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	user, _, err := git.Users.CurrentUser()
 	if err != nil {
 		room.Sendf("Unexpected error: %s", err)
@@ -114,7 +128,7 @@ func commandWhoami(git *gitlab.Client, room *mautrix.Room, sender string, args .
 		user.Name)
 }
 
-func commandShow(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandShow(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) < 2 {
 		room.SendHTML("Usage: <code>!gitlab show &lt;repo&gt; &lt;hash&gt;</code>")
 		return
@@ -136,7 +150,7 @@ func commandShow(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 
 var diffLocationRegex = regexp.MustCompile("(@@ -[0-9]+,[0-9]+ \\+[0-9]+,[0-9]+ @@)")
 
-func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) < 2 {
 		room.SendHTML("Usage: <code>!gitlab diff &lt;repo&gt; &lt;hash&gt;</code>")
 		return
@@ -170,7 +184,7 @@ func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 	room.SendHTML(buf.String())
 }
 
-func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) == 0 {
 		room.SendHTML("Usage: <code>!gitlab log &lt;repo&gt; [n] [page]</code>")
 		return
@@ -203,4 +217,45 @@ func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args ...s
 	}
 
 	room.SendHTML(buf.String())
+}
+
+func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
+	if len(args) == 0 {
+		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
+		return
+	}
+
+	switch args[0] {
+	case "read":
+		if len(args) < 3 {
+			room.Send("Usage: !gitlab issue read <repo> <issue id>")
+			return
+		}
+
+		id, err := strconv.Atoi(args[2])
+		if err != nil {
+			room.Send("Usage: !gitlab issue read <repo> <issue id>")
+			return
+		}
+
+		issue, _, err := git.Issues.GetIssue(args[1], id)
+		if err != nil {
+			room.Sendf("An error occurred: %s", err)
+			return
+		}
+
+		var buf bytes.Buffer
+		fmt.Fprintf(&buf, "Issue #%[2]d by %[3]s: <a href='%[1]s'>%[4]s</a>.", issue.WebURL, issue.IID, issue.Author.Name, issue.Title)
+		if len(issue.Assignee.Name) > 0 {
+			fmt.Fprintf(&buf, " Assigned to %s.", issue.Assignee.Name)
+		}
+		fmt.Fprintf(&buf, "<br/>\n<blockquote>%s</blockquote><br/>\n", strings.Replace(issue.Description, "\n", "<br/>\n", -1))
+		room.SendHTML(buf.String())
+	case "open":
+	case "close":
+	case "comment":
+	case "read-comments":
+	default:
+		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
+	}
 }

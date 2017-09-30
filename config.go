@@ -30,10 +30,11 @@ type Config struct {
 	} `json:"webhook"`
 
 	Matrix struct {
-		Homeserver string `json:"homeserver"`
-		Username   string `json:"username"`
-		Password   string `json:"password"`
-		AuthToken  string `json:"authtoken"`
+		Homeserver    string `json:"homeserver"`
+		Username      string `json:"username"`
+		Password      string `json:"password"`
+		AuthToken     string `json:"authtoken,omitempty"`
+		TransactionID int    `json:"txnID,omitempty"`
 	}
 
 	GitLab struct {

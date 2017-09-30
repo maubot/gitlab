@@ -37,6 +37,7 @@ func startMatrix() func() {
 		saveConfig(*configPath)
 	} else {
 		mxbot.SetToken(config.Matrix.Username, config.Matrix.AuthToken)
+		mxbot.TxnID = config.Matrix.TransactionID
 	}
 
 	fmt.Println("Connected to Matrix homeserver at", config.Matrix.Homeserver, "as", config.Matrix.Username)
@@ -59,13 +60,19 @@ func startMatrix() func() {
 						continue Loop
 					}
 					msg = strings.TrimPrefix(msg, "!gitlab ")
-					parts := strings.Split(msg, " ")
+					lines := strings.Split(msg, "\n")
+					parts := strings.Split(lines[0], " ")
+					if len(lines) > 1 {
+						lines = lines[1:]
+					} else {
+						lines = []string{}
+					}
 					cmd := parts[0]
 					var args []string
 					if len(parts) > 1 {
 						args = parts[1:]
 					}
-					handleCommand(evt.Room, evt.Sender, cmd, args...)
+					handleCommand(evt.Room, evt.Sender, cmd, args, lines)
 				}
 			case roomID := <-mxbot.InviteChan:
 				invite := mxbot.Invites[roomID]
@@ -78,5 +85,7 @@ func startMatrix() func() {
 
 	return func() {
 		stop <- true
+		config.Matrix.TransactionID = mxbot.TxnID
+		saveConfig(*configPath)
 	}
 }

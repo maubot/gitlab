@@ -13,7 +13,7 @@ A Gitlab bot for Matrix. It uses
 	* [x] View commit diffs
 	* [x] View commit history
 * [ ] Issue management
-	* [ ] Read issues
+	* [x] Read issues
 	* [ ] Create/close/reopen issues
 	* [ ] Read comments on issues
 	* [ ] Comment on issues

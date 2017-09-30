@@ -22,22 +22,22 @@ import (
 
 var permittedPreloginCommands = []string{"ping", "server", "login", "help"}
 
-func handleCommand(room *mautrix.Room, sender, command string, args ...string) {
+func handleCommand(room *mautrix.Room, sender, command string, args []string, lines []string) {
 	git := getGitlabClient(sender)
 	handler, ok := Commands[command]
 	if !ok {
-		UnknownCommand(git, room, sender, command, args...)
+		UnknownCommand(git, room, sender, command, args)
 		return
 	}
 	if git == nil {
 		for _, cmd := range permittedPreloginCommands {
 			if cmd == command {
-				handler(nil, room, sender, args...)
+				handler(nil, room, sender, args, lines)
 				return
 			}
 		}
-		AuthOnlyCommand(room, sender, command, args...)
+		AuthOnlyCommand(room, sender, command, args)
 		return
 	}
-	handler(git, room, sender, args...)
+	handler(git, room, sender, args, lines)
 }
