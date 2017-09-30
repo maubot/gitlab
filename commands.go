@@ -225,20 +225,31 @@ func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []
 		return
 	}
 
-	switch args[0] {
+	subcommand := args[0]
+	if len(args) > 1 {
+		args = args[1:]
+	} else {
+		args = []string{}
+	}
+
+	switch subcommand {
+	case "show":
+		fallthrough
+	case "view":
+		fallthrough
 	case "read":
-		if len(args) < 3 {
+		if len(args) < 2 {
 			room.Send("Usage: !gitlab issue read <repo> <issue id>")
 			return
 		}
 
-		id, err := strconv.Atoi(args[2])
+		id, err := strconv.Atoi(args[1])
 		if err != nil {
 			room.Send("Usage: !gitlab issue read <repo> <issue id>")
 			return
 		}
 
-		issue, _, err := git.Issues.GetIssue(args[1], id)
+		issue, _, err := git.Issues.GetIssue(args[0], id)
 		if err != nil {
 			room.Sendf("An error occurred: %s", err)
 			return
@@ -251,8 +262,44 @@ func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []
 		}
 		fmt.Fprintf(&buf, "<br/>\n<blockquote>%s</blockquote><br/>\n", strings.Replace(issue.Description, "\n", "<br/>\n", -1))
 		room.SendHTML(buf.String())
+	case "create":
+		fallthrough
 	case "open":
+		if len(args) < 2 {
+			room.Send("Usage: !gitlab issue open <repo> <title> \\n <body>")
+			return
+		}
+
+		title := strings.Join(args[1:], " ")
+		description := strings.Join(lines, "\n")
+
+		_, _, err := git.Issues.CreateIssue(args[0], &gitlab.CreateIssueOptions{
+			Title:       &title,
+			Description: &description,
+		})
+		if err != nil {
+			room.Sendf("Failed to create issue: %s", err)
+		}
 	case "close":
+		fallthrough
+	case "reopen":
+		if len(args) < 2 {
+			room.Sendf("Usage: !gitlab issue %s <repo> <issue number>", subcommand)
+			return
+		}
+
+		issueID, err := strconv.Atoi(args[1])
+		if err != nil {
+			room.Sendf("Invalid issue ID: %s", args[1])
+		}
+		_, resp, err := git.Issues.UpdateIssue(args[0], issueID, &gitlab.UpdateIssueOptions{
+			StateEvent: &subcommand,
+		})
+		if resp.StatusCode == 404 {
+			room.Sendf("Issue #%d or repository %s not found.", issueID, args[0])
+		} else if err != nil {
+			room.Sendf("Failed to %s issue: %s", subcommand, err)
+		}
 	case "comment":
 	case "read-comments":
 	default:

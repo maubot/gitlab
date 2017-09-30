@@ -14,7 +14,7 @@ A Gitlab bot for Matrix. It uses
 	* [x] View commit history
 * [ ] Issue management
 	* [x] Read issues
-	* [ ] Create/close/reopen issues
+	* [x] Create/close/reopen issues
 	* [ ] Read comments on issues
 	* [ ] Comment on issues
 
