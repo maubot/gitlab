@@ -1,6 +1,14 @@
 Maunium GitLab bot
 ==================
+A Gitlab bot for Matrix
 
-A bot to get notifications from GitLab to Matrix.
-
-Future plans: Accessing GitLab (e.g. Creating/commenting on issues)
+Features
+* [x] Spam a Matrix room using GitLab webhooks
+* [x] Log in to GitLab accounts (per-user)
+* [x] View full commit messages
+* [ ] Issue management
+  * [ ] Read issues
+	* [ ] Create/close/reopen issues
+	* [ ] Read comments on issues
+	* [ ] Comment on issues
+* [ ] View changes in commit
