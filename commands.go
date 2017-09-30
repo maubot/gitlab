@@ -43,7 +43,7 @@ var Commands = map[string]GitlabCommand{
 	"server": commandServer,
 	"login":  commandLogin,
 	"logout": commandLogout,
-	"commit": commandCommit,
+	"show":   commandShow,
 	"whoami": commandWhoami,
 	"help":   commandHelp,
 }
@@ -76,12 +76,12 @@ func commandHelp(git *gitlab.Client, room *mautrix.Room, sender string, args ...
 	if git != nil {
 		room.SendHTML(`<pre>
 Commands are prefixed with !gitlab
-- ping                 - Ping the bot.
-- commit &lt;repo&gt; &lt;hash&gt; - Get details about a specific commit.
-- whoami               - Check who you're logged in as.
-- logout               - Remove your GitLab access token from storage.
-- login        &lt;token&gt; - Add a GitLab access token to storage.
-- help                 - Show this help page.
+- ping               - Ping the bot.
+- show &lt;repo&gt; &lt;hash&gt; - Get details about a specific commit.
+- whoami             - Check who you're logged in as.
+- logout             - Remove your GitLab access token from storage.
+- login      &lt;token&gt; - Add a GitLab access token to storage.
+- help               - Show this help page.
 </pre>`)
 	} else {
 		room.SendHTML(`<b>You're not logged in.</b><br/>
@@ -109,9 +109,9 @@ func commandWhoami(git *gitlab.Client, room *mautrix.Room, sender string, args .
 		user.Name)
 }
 
-func commandCommit(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
+func commandShow(git *gitlab.Client, room *mautrix.Room, sender string, args ...string) {
 	if len(args) < 2 {
-		room.SendHTML("Usage: <code>!gitlab commit &lt;repo&gt; &lt;hash&gt;</code>")
+		room.SendHTML("Usage: <code>!gitlab show &lt;repo&gt; &lt;hash&gt;</code>")
 		return
 	}
 
