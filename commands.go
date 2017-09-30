@@ -287,6 +287,49 @@ func commandCommentOnIssue(git *gitlab.Client, room *mautrix.Room, sender string
 	})
 }
 
+func commandReadIssueComments(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
+	if len(args) < 2 {
+		room.Send("Usage: !gitlab issue comments <repo> <issue id> [n] [page]")
+		return
+	}
+
+	issueID, err := strconv.Atoi(args[1])
+	if err != nil {
+		room.Sendf("Invalid issue ID: %s", args[1])
+	}
+
+	n := 5
+	page := 1
+	if len(args) > 2 {
+		n, _ = strconv.Atoi(args[2])
+		if len(args) > 3 {
+			page, _ = strconv.Atoi(args[3])
+		}
+	}
+
+	comments, resp, err := git.Notes.ListIssueNotes(args[0], issueID, &gitlab.ListIssueNotesOptions{
+		ListOptions: gitlab.ListOptions{
+			Page:    page,
+			PerPage: n,
+		},
+	})
+	if resp.StatusCode == 404 {
+		room.Sendf("Issue #%d or repository %s not found.", issueID, args[0])
+		return
+	} else if err != nil {
+		room.Sendf("Failed to read comments: %s", err)
+		return
+	}
+	var buf bytes.Buffer
+	for _, comment := range comments {
+		fmt.Fprintf(&buf, "%s at %s:<br/>\n<blockquote>%s</blockquote>",
+			comment.Author.Name,
+			comment.CreatedAt.Format("Jan _2, 2006 15:04:05"),
+			comment.Body)
+	}
+	room.SendHTML(buf.String())
+}
+
 func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) == 0 {
 		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
@@ -333,7 +376,10 @@ func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []
 		}
 	case "comment":
 		commandCommentOnIssue(git, room, sender, args, lines)
+	case "comments":
+		fallthrough
 	case "read-comments":
+		commandReadIssueComments(git, room, sender, args, lines)
 	default:
 		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
 	}

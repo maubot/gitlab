@@ -12,11 +12,12 @@ A Gitlab bot for Matrix. It uses
   * [x] View full commit messages
 	* [x] View commit diffs
 	* [x] View commit history
-* [ ] Issue management
+* [x] Issue management
 	* [x] Read issues
 	* [x] Create/close/reopen issues
-	* [ ] Read comments on issues
+	* [x] Read comments on issues
 	* [x] Comment on issues
+* [ ] Shorter commands
 
 ## Usage
 Configure the server by copying `example-config.json` to `config.json` and
