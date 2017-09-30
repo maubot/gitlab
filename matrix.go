@@ -58,7 +58,7 @@ func startMatrix() func() {
 					if len(parts) > 1 {
 						args = parts[1:]
 					}
-					handleGitlabCommand(evt.Room, evt.Sender, cmd, args...)
+					handleCommand(evt.Room, evt.Sender, cmd, args...)
 				}
 			case roomID := <-mxbot.InviteChan:
 				invite := mxbot.Invites[roomID]
