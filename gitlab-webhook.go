@@ -24,12 +24,7 @@ import (
 
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
-	flag "maunium.net/go/mauflag"
 )
-
-var gitlabListenAddr = flag.MakeFull("l", "webhook-listen", "GitLab listen address", ":8080").String()
-var gitlabListenPath = flag.MakeFull("g", "webhook-path", "GitLab listen path", "/webhooks").String()
-var gitlabSecret = flag.MakeFull("e", "webhook-secret", "GitLab secret", "").String()
 
 func addRoomToHeaders(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,20 +40,20 @@ func addRoomToHeaders(handler http.Handler) http.Handler {
 }
 
 func startWebhook() func() {
-	hook := gitlab.New(&gitlab.Config{Secret: *gitlabSecret})
+	hook := gitlab.New(&gitlab.Config{Secret: config.Webhook.Secret})
 	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
 	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
 	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
 	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
 
-	server := &http.Server{Addr: *gitlabListenAddr}
+	server := &http.Server{Addr: config.Webhook.Listen}
 	go func() {
 		mux := http.NewServeMux()
-		mux.Handle(*gitlabListenPath, addRoomToHeaders(webhooks.Handler(hook)))
+		mux.Handle(config.Webhook.Path, addRoomToHeaders(webhooks.Handler(hook)))
 
 		server.Handler = mux
 
-		fmt.Println("Listening to GitLab webhooks at", *gitlabListenAddr+*gitlabListenPath)
+		fmt.Println("Listening to GitLab webhooks at", config.Webhook.Listen+config.Webhook.Path)
 		err := server.ListenAndServe()
 		if err != nil {
 			fmt.Println(err)
@@ -76,13 +71,13 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 
 	branch := strings.TrimPrefix(data.Ref, "refs/heads/")
 	if data.TotalCommitsCount == 0 {
-		room.SendHTML(fmt.Sprintf(
+		room.SendfHTML(
 			"[%[3]s/%[4]s] %[5]s force pushed to or deleted branch <a href='%[1]s/tree/%[2]s'>%[2]s</a>",
 			data.Project.WebURL,
 			branch,
 			data.Project.Namespace,
 			data.Project.Name,
-			data.UserName))
+			data.UserName)
 		return
 	}
 
@@ -90,7 +85,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	if data.TotalCommitsCount != 1 {
 		pluralizer = "s"
 	}
-	room.SendHTML(fmt.Sprintf(
+	room.SendfHTML(
 		"[<a href='%[1]s/tree/%[2]s'>%[3]s/%[4]s#%[2]s</a>] %[5]d new commit%[7]s by %[6]s",
 		data.Project.WebURL,
 		branch,
@@ -98,7 +93,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 		data.Project.Name,
 		data.TotalCommitsCount,
 		data.UserName,
-		pluralizer))
+		pluralizer)
 	// IRC compatibility: Allow up to 4 commits to be displayed through the IRC bridge without
 	// 					  having the bridge turn the message into a link.
 	if data.TotalCommitsCount > 4 {
@@ -121,7 +116,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 			if strings.Contains(message, "\n") {
 				message = fmt.Sprintf("%s (...)", strings.Split(message, "\n")[0])
 			}
-			room.SendHTML(fmt.Sprintf("<ul><li>%s (%s)</li></ul>", message, commit.ID[:8]))
+			room.SendfHTML("<ul><li>%s (%s)</li></ul>", message, commit.ID[:8])
 		}
 	}
 }
@@ -137,7 +132,7 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 	} else if !strings.HasSuffix(action, "e") {
 		action += "e"
 	}
-	room.SendHTML(fmt.Sprintf(
+	room.SendfHTML(
 		"[%[1]s/%[2]s] %[3]s %[4]sd issue <a href='%[5]s'>%[6]s (#%[7]d)</a>",
 		data.Project.Namespace,
 		data.Project.Name,
@@ -145,7 +140,7 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 		action,
 		data.ObjectAttributes.URL,
 		data.ObjectAttributes.Title,
-		data.ObjectAttributes.IID))
+		data.ObjectAttributes.IID)
 }
 
 func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
@@ -159,7 +154,7 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 	} else if !strings.HasSuffix(action, "e") {
 		action += "e"
 	}
-	room.SendHTML(fmt.Sprintf(
+	room.SendfHTML(
 		"[%[1]s/%[2]s] %[3]s %[4]sd merge request <a href='%[5]s'>%[6]s (#%[7]d)</a>",
 		data.ObjectAttributes.Target.Namespace,
 		data.ObjectAttributes.Target.Name,
@@ -167,7 +162,7 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 		action,
 		data.ObjectAttributes.URL,
 		data.ObjectAttributes.Title,
-		data.ObjectAttributes.IID))
+		data.ObjectAttributes.IID)
 }
 
 func handleCommentEvent(payload interface{}, header webhooks.Header) {
@@ -188,7 +183,7 @@ func handleCommentEvent(payload interface{}, header webhooks.Header) {
 		id = data.MergeRequest.IID
 	}
 
-	room.SendHTML(fmt.Sprintf(
+	room.SendfHTML(
 		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (#%[7]d)",
 		data.Project.Namespace,
 		data.Project.Name,
@@ -196,5 +191,5 @@ func handleCommentEvent(payload interface{}, header webhooks.Header) {
 		notebookType,
 		data.ObjectAttributes.URL,
 		title,
-		id))
+		id)
 }

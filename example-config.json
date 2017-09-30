@@ -1,0 +1,15 @@
+{
+	"webhook": {
+		"listen": "localhost:20087",
+		"path": "/webhooks",
+		"secret": "foobar"
+	},
+	"gitlab": {
+		"domain": "https://gitlab.org"
+	},
+	"matrix": {
+		"homeserver": "https://matrix.org",
+		"username": "",
+		"password": ""
+	}
+}

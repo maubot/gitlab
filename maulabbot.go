@@ -26,9 +26,10 @@ import (
 )
 
 var wantHelp, _ = flag.MakeHelpFlag()
+var configPath = flag.MakeFull("c", "config", "The path to the config file.", "config.json").String()
 
 func main() {
-	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-s hs] [-u user] [-p passwd] [-l listen addr] [-g listen path] [-e secret]")
+	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-c /path/to/config]")
 	err := flag.Parse()
 	if err != nil {
 		fmt.Println(err)
@@ -38,13 +39,24 @@ func main() {
 		flag.PrintHelp()
 		return
 	}
+
+	err = loadConfig(*configPath)
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+		return
+	}
+
+	// Initialize everything
 	stopMatrix := startMatrix()
 	stopWebhook := startWebhook()
 	loadGitlabTokens()
 
+	// Wait for interrupts
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
+
+	// Stop everything
 	stopMatrix()
 	stopWebhook()
 }

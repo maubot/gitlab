@@ -20,23 +20,19 @@ import (
 	"fmt"
 	"strings"
 
-	flag "maunium.net/go/mauflag"
 	"maunium.net/go/mautrix"
 )
 
-var homeserver = flag.MakeFull("s", "homeserver", "Matrix homeserver", "https://matrix.org").String()
-var username = flag.MakeFull("u", "username", "Matrix username", "").String()
-var password = flag.MakeFull("p", "password", "Matrix password", "").String()
 var mxbot *mautrix.MatrixBot
 
 func startMatrix() func() {
-	mxbot = mautrix.Create(*homeserver)
+	mxbot = mautrix.Create(config.Matrix.Homeserver)
 
-	err := mxbot.PasswordLogin(*username, *password)
+	err := mxbot.PasswordLogin(config.Matrix.Username, config.Matrix.Password)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connected to Matrix homeserver at", *homeserver, "as", *username)
+	fmt.Println("Connected to Matrix homeserver at", config.Matrix.Homeserver, "as", config.Matrix.Username)
 
 	stop := make(chan bool, 1)
 
