@@ -33,6 +33,7 @@ type Config struct {
 		Homeserver string `json:"homeserver"`
 		Username   string `json:"username"`
 		Password   string `json:"password"`
+		AuthToken  string `json:"authtoken"`
 	}
 
 	GitLab struct {
@@ -49,4 +50,13 @@ func loadConfig(path string) error {
 	}
 
 	return json.Unmarshal(data, &config)
+}
+
+func saveConfig(path string) error {
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, data, 0600)
 }

@@ -28,10 +28,17 @@ var mxbot *mautrix.MatrixBot
 func startMatrix() func() {
 	mxbot = mautrix.Create(config.Matrix.Homeserver)
 
-	err := mxbot.PasswordLogin(config.Matrix.Username, config.Matrix.Password)
-	if err != nil {
-		panic(err)
+	if len(config.Matrix.AuthToken) == 0 {
+		err := mxbot.PasswordLogin(config.Matrix.Username, config.Matrix.Password)
+		if err != nil {
+			panic(err)
+		}
+		config.Matrix.AuthToken = mxbot.AccessToken
+		saveConfig(*configPath)
+	} else {
+		mxbot.SetToken(config.Matrix.Username, config.Matrix.AuthToken)
 	}
+
 	fmt.Println("Connected to Matrix homeserver at", config.Matrix.Homeserver, "as", config.Matrix.Username)
 
 	stop := make(chan bool, 1)
