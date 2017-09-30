@@ -28,7 +28,7 @@ import (
 var wantHelp, _ = flag.MakeHelpFlag()
 
 func main() {
-	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-s hs] [-u user] [-p passwd] [-l listen addr] [-g listen path] [-e secret] [-t token]")
+	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-s hs] [-u user] [-p passwd] [-l listen addr] [-g listen path] [-e secret]")
 	err := flag.Parse()
 	if err != nil {
 		fmt.Println(err)
@@ -40,7 +40,7 @@ func main() {
 	}
 	stopMatrix := startMatrix()
 	stopWebhook := startWebhook()
-	initGitlabClient()
+	loadGitlabTokens()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

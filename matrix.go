@@ -53,7 +53,7 @@ func startMatrix() func() {
 					evt.MarkRead()
 					msg := evt.Content["body"].(string)
 					if !strings.HasPrefix(msg, "!gitlab") {
-						continue
+						continue Loop
 					}
 					msg = strings.TrimPrefix(msg, "!gitlab ")
 					parts := strings.Split(msg, " ")
@@ -62,7 +62,7 @@ func startMatrix() func() {
 					if len(parts) > 1 {
 						args = parts[1:]
 					}
-					handleGitlabCommand(evt.Room, cmd, args...)
+					handleGitlabCommand(evt.Room, evt.Sender, cmd, args...)
 				}
 			case roomID := <-mxbot.InviteChan:
 				invite := mxbot.Invites[roomID]
