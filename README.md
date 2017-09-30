@@ -16,7 +16,7 @@ A Gitlab bot for Matrix. It uses
 	* [x] Read issues
 	* [x] Create/close/reopen issues
 	* [ ] Read comments on issues
-	* [ ] Comment on issues
+	* [x] Comment on issues
 
 ## Usage
 Configure the server by copying `example-config.json` to `config.json` and

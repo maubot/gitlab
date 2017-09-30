@@ -265,6 +265,28 @@ func commandCreateIssue(git *gitlab.Client, room *mautrix.Room, sender string, a
 	}
 }
 
+func commandCommentOnIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
+	if len(args) < 2 {
+		room.Send("Usage: !gitlab issue comment <repo> <issue id> [\\n] <body>")
+		return
+	}
+
+	issueID, err := strconv.Atoi(args[1])
+	if err != nil {
+		room.Sendf("Invalid issue ID: %s", args[1])
+	}
+
+	var body string
+	if len(args) > 2 {
+		body = strings.Join(args[2:], " ") + "\n"
+	}
+	body += strings.Join(lines, "\n")
+
+	git.Notes.CreateIssueNote(args[0], issueID, &gitlab.CreateIssueNoteOptions{
+		Body: &body,
+	})
+}
+
 func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) == 0 {
 		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
@@ -310,6 +332,7 @@ func commandIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []
 			room.Sendf("Failed to %s issue: %s", subcommand, err)
 		}
 	case "comment":
+		commandCommentOnIssue(git, room, sender, args, lines)
 	case "read-comments":
 	default:
 		room.SendHTML("Unknown subcommand. Try <code>!gitlab help issue</code> for help.")
