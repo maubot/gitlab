@@ -44,7 +44,7 @@ func startWebhook() func() {
 	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
 	hook.RegisterEvents(handleTagEvent, gitlab.TagEvents)
 	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
-	hook.RegisterEvents(handleConfidentialIssueEvent, gitlab.Event("Confidential Issue Hook"))
+	hook.RegisterEvents(handleIssueEvent, gitlab.ConfidentialIssuesEvents)
 	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
 	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
 
@@ -141,21 +141,20 @@ func handleTagEvent(payload interface{}, header webhooks.Header) {
 		tag)
 }
 
-func handleConfidentialIssueEvent(payload interface{}, header webhooks.Header) {
-	header["X-Confidential-Issue"] = []string{"true"}
-	handleIssueEvent(payload, header)
-}
-
 func handleIssueEvent(payload interface{}, header webhooks.Header) {
-	data := payload.(gitlab.IssueEventPayload)
+	data, ok := payload.(gitlab.IssueEventPayload)
+	confidential := ""
+	if !ok {
+		data2, ok := payload.(gitlab.ConfidentialIssueEventPayload)
+		if !ok {
+			fmt.Println("Unexpected error: Received issue event with incorrect payload type.")
+			return
+		}
+		confidential = "confidential "
+		data = data2.IssueEventPayload
+	}
 	roomID := header["X-Room-Id"][0]
 	room := mxbot.GetRoom(roomID)
-
-	confidential := ""
-	confidentialHeader, _ := header["X-Confidential-Issue"]
-	if len(confidentialHeader) > 0 && confidentialHeader[0] == "true" {
-		confidential = "confidential "
-	}
 
 	var action = data.ObjectAttributes.Action
 	if action == "update" || len(action) == 0 {
