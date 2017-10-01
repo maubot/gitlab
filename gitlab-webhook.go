@@ -44,6 +44,7 @@ func startWebhook() func() {
 	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
 	hook.RegisterEvents(handleTagEvent, gitlab.TagEvents)
 	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
+	hook.RegisterEvents(handleConfidentialIssueEvent, gitlab.Event("Confidential Issue Hook"))
 	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
 	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
 
@@ -140,23 +141,35 @@ func handleTagEvent(payload interface{}, header webhooks.Header) {
 		tag)
 }
 
+func handleConfidentialIssueEvent(payload interface{}, header webhooks.Header) {
+	header["X-Confidential-Issue"] = []string{"true"}
+	handleIssueEvent(payload, header)
+}
+
 func handleIssueEvent(payload interface{}, header webhooks.Header) {
 	data := payload.(gitlab.IssueEventPayload)
 	roomID := header["X-Room-Id"][0]
 	room := mxbot.GetRoom(roomID)
 
+	confidential := ""
+	confidentialHeader, _ := header["X-Confidential-Issue"]
+	if len(confidentialHeader) > 0 && confidentialHeader[0] == "true" {
+		confidential = "confidential "
+	}
+
 	var action = data.ObjectAttributes.Action
-	if action == "update" {
+	if action == "update" || len(action) == 0 {
 		return
 	} else if !strings.HasSuffix(action, "e") {
 		action += "e"
 	}
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd issue <a href='%[5]s'>%[6]s (#%[7]d)</a>",
+		"[%[1]s/%[2]s] %[3]s %[4]sd %[5]sissue <a href='%[6]s'>%[7]s (#%[8]d)</a>",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
 		action,
+		confidential,
 		data.ObjectAttributes.URL,
 		data.ObjectAttributes.Title,
 		data.ObjectAttributes.IID)
