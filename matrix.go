@@ -77,7 +77,10 @@ func startMatrix() func() {
 			case roomID := <-mxbot.InviteChan:
 				invite := mxbot.Invites[roomID]
 				fmt.Printf("%s invited me to %s (%s)\n", invite.Sender, invite.Name, invite.ID)
-				fmt.Println(invite.Accept())
+				err := invite.Accept()
+				if err != nil {
+					fmt.Println("Unexpected error:", err)
+				}
 			}
 		}
 		mxbot.Stop()
