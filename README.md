@@ -10,7 +10,7 @@ A Gitlab bot for Matrix. It uses
 	* [X] Issues/merge requests
 		* [X] Comments
 	* [X] Push events
-	* [ ] Tag creation
+	* [x] Tag creation
 	* [ ] Pipeline events
 	* [ ] Wiki page edits
 * [x] Log in to GitLab accounts (per-user)

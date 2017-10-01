@@ -42,6 +42,7 @@ func addRoomToHeaders(handler http.Handler) http.Handler {
 func startWebhook() func() {
 	hook := gitlab.New(&gitlab.Config{Secret: config.Webhook.Secret})
 	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
+	hook.RegisterEvents(handleTagEvent, gitlab.TagEvents)
 	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
 	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
 	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
@@ -121,6 +122,22 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 			room.SendfHTML("<ul><li>%s (%s)</li></ul>", message, commit.ID[:8])
 		}
 	}
+}
+
+func handleTagEvent(payload interface{}, header webhooks.Header) {
+	data := payload.(gitlab.TagEventPayload)
+	if data.ObjectKind != "tag_push" {
+		return
+	}
+	roomID := header["X-Room-Id"][0]
+	room := mxbot.GetRoom(roomID)
+	tag := strings.TrimPrefix(data.Ref, "refs/tags/")
+	room.SendfHTML("[%[1]s/%[2]s] %[3]s created tag <a href='%[4]s/tags/%[5]s'>%[5]s</a>",
+		data.Project.Namespace,
+		data.Project.Name,
+		data.UserName,
+		data.Project.WebURL,
+		tag)
 }
 
 func handleIssueEvent(payload interface{}, header webhooks.Header) {
