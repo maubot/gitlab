@@ -5,6 +5,9 @@ A Gitlab bot for Matrix. It uses
 [go-playground webhooks](https://github.com/go-playground/webhooks) and
 [go-gitlab](https://github.com/xanzy/go-gitlab)
 
+## Discussion
+Matrix room: [#maulabbot:maunium.net](https://matrix.to/#/#maulabbot:maunium.net)
+
 ## Features
 * [x] Spam a Matrix room using GitLab webhooks
 	* [X] Issues/merge requests
