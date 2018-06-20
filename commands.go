@@ -157,7 +157,7 @@ func commandDiff(git *gitlab.Client, room *mautrix.Room, sender string, args []s
 		return
 	}
 
-	diffs, _, err := git.Commits.GetCommitDiff(args[0], args[1])
+	diffs, _, err := git.Commits.GetCommitDiff(args[0], args[1], &gitlab.GetCommitDiffOptions{})
 	if err != nil {
 		room.Sendf("An error occurred: %s", err)
 		return
@@ -220,6 +220,23 @@ func commandLog(git *gitlab.Client, room *mautrix.Room, sender string, args []st
 	room.SendHTML(buf.String())
 }
 
+func printAssignees(buf *bytes.Buffer, issue *gitlab.Issue) {
+	var names []string
+	if len(issue.Assignees) > 0 {
+		for _, assignee := range issue.Assignees[:len(issue.Assignees)-1] {
+			names = append(names, assignee.Name)
+		}
+	} else if len(issue.Assignee.Name) > 0 {
+		names = append(names, issue.Assignee.Name)
+	}
+
+	if len(names) == 1 {
+		fmt.Fprintf(buf, "Assigned to %s.", names[0])
+	} else if len(names) > 1 {
+		fmt.Fprintf(buf, "Assigned to %s and %s.", strings.Join(names[:len(names)-1], ", "), names[len(names)-1])
+	}
+}
+
 func commandReadIssue(git *gitlab.Client, room *mautrix.Room, sender string, args []string, lines []string) {
 	if len(args) < 2 {
 		room.Send("Usage: !gitlab issue read <repo> <issue id>")
@@ -240,9 +257,7 @@ func commandReadIssue(git *gitlab.Client, room *mautrix.Room, sender string, arg
 
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "Issue #%[2]d by %[3]s: <a href='%[1]s'>%[4]s</a>.", issue.WebURL, issue.IID, issue.Author.Name, issue.Title)
-	if len(issue.Assignee.Name) > 0 {
-		fmt.Fprintf(&buf, " Assigned to %s.", issue.Assignee.Name)
-	}
+	printAssignees(&buf, issue)
 	fmt.Fprintf(&buf, "<br/>\n<blockquote>%s</blockquote><br/>\n", strings.Replace(issue.Description, "\n", "<br/>\n", -1))
 	room.SendHTML(buf.String())
 }
@@ -308,10 +323,8 @@ func commandReadIssueComments(git *gitlab.Client, room *mautrix.Room, sender str
 	}
 
 	comments, resp, err := git.Notes.ListIssueNotes(args[0], issueID, &gitlab.ListIssueNotesOptions{
-		ListOptions: gitlab.ListOptions{
-			Page:    page,
-			PerPage: n,
-		},
+		Page:    page,
+		PerPage: n,
 	})
 	if resp.StatusCode == 404 {
 		room.Sendf("Issue #%d or repository %s not found.", issueID, args[0])
