@@ -186,7 +186,7 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 		action += "e"
 	}
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd merge request <a href='%[5]s'>%[6]s (#%[7]d)</a>",
+		"[%[1]s/%[2]s] %[3]s %[4]sd merge request <a href='%[5]s'>%[6]s (!%[7]d)</a>",
 		data.ObjectAttributes.Target.Namespace,
 		data.ObjectAttributes.Target.Name,
 		data.User.Name,
@@ -202,25 +202,29 @@ func handleCommentEvent(payload interface{}, header webhooks.Header) {
 	room := mxbot.GetRoom(roomID)
 
 	var notebookType, title string
+	var notebookIdentifier rune
 	var id int64
 	switch data.ObjectAttributes.NotebookType {
 	case "Issue":
 		notebookType = "issue"
+		notebookIdentifier = '#'
 		title = data.Issue.Title
 		id = data.Issue.IID
 	case "MergeRequest":
 		notebookType = "merge request"
+		notebookIdentifier = '!'
 		title = data.MergeRequest.Title
 		id = data.MergeRequest.IID
 	}
 
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (#%[7]d)",
+		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (%[8]c%[7]d)",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
 		notebookType,
 		data.ObjectAttributes.URL,
 		title,
-		id)
+		id,
+		notebookIdentifier)
 }
