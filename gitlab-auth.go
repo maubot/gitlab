@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	gitlab "github.com/xanzy/go-gitlab"
+	"github.com/xanzy/go-gitlab"
+	"maubot.xyz"
 )
 
 var gitlabTokens = make(map[string]string)
@@ -64,6 +65,14 @@ func loginGitlab(userID, token string) string {
 func logoutGitlab(userID string) {
 	delete(gitlabTokens, userID)
 	saveGitlabTokens()
+}
+
+type GitLabCommandHandler func(evt *maubot.Event, client *gitlab.Client) maubot.CommandHandlerResult
+
+func gitlabClientMiddleware(fn GitLabCommandHandler) maubot.CommandHandler {
+	return func(evt *maubot.Event) maubot.CommandHandlerResult {
+		return fn(evt, getGitlabClient(evt.Sender))
+	}
 }
 
 func getGitlabClient(userID string) *gitlab.Client {
