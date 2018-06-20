@@ -100,7 +100,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	// 					  having the bridge turn the message into a link.
 	if data.TotalCommitsCount > 4 || !config.Options.IRCCompatibility {
 		var msg bytes.Buffer
-		fmt.Fprintln(&msg, "<ul>")
+		fmt.Fprint(&msg, "<ul>")
 		for i := len(data.Commits) - 1; i >= 0; i-- {
 			commit := data.Commits[i]
 			lines := strings.Split(commit.Message, "\n")
@@ -110,7 +110,7 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 			}
 			fmt.Fprintf(&msg, "<li>%s (%s)</li>\n", message, commit.ID[:8])
 		}
-		fmt.Fprintln(&msg, "</ul>")
+		fmt.Fprint(&msg, "</ul>")
 		room.SendHTML(msg.String())
 	} else {
 		for i := len(data.Commits) - 1; i >= 0; i-- {
