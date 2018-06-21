@@ -69,9 +69,14 @@ func logoutGitlab(userID string) {
 
 type GitLabCommandHandler func(evt *maubot.Event, client *gitlab.Client) maubot.CommandHandlerResult
 
-func gitlabClientMiddleware(fn GitLabCommandHandler) maubot.CommandHandler {
+func authMiddleware(fn GitLabCommandHandler) maubot.CommandHandler {
 	return func(evt *maubot.Event) maubot.CommandHandlerResult {
-		return fn(evt, getGitlabClient(evt.Sender))
+		client := getGitlabClient(evt.Sender)
+		if client == nil {
+			evt.SendMessage("That command can only be used if you're logged in.\nTry `!gitlab login <access token>`.")
+			return maubot.StopEventPropagation
+		}
+		return fn(evt, client)
 	}
 }
 

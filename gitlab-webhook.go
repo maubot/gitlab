@@ -18,9 +18,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
@@ -62,7 +64,9 @@ func startWebhook() func() {
 		}
 	}()
 	return func() {
-		server.Shutdown(nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+		defer cancel()
+		server.Shutdown(ctx)
 	}
 }
 
