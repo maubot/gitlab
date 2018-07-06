@@ -28,9 +28,10 @@ import (
 
 var wantHelp, _ = flag.MakeHelpFlag()
 var configPath = flag.MakeFull("c", "config", "The path to the config file.", "config.json").String()
+var tokensPath = flag.MakeFull("t", "tokens", "The path to the tokens file.", "tokens.json").String()
 
 func main() {
-	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-c /path/to/config]")
+	flag.SetHelpTitles("maulabbot - A GitLab bot for Matrix", "maulabbot [-h] [-c /path/to/config] [-t /path/to/tokens]")
 	err := flag.Parse()
 	if err != nil {
 		fmt.Println(err)

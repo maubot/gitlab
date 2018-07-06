@@ -17,4 +17,4 @@ FROM scratch
 COPY --from=builder /usr/bin/maulabbot /usr/bin/maulabbot
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
 
-CMD ["/usr/bin/maulabbot"]
+CMD ["/usr/bin/maulabbot", "-c", "/etc/maulabbot/config.json", "-t", "/etc/maulabbot/tokens.json"]

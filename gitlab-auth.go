@@ -28,11 +28,11 @@ var gitlabTokens = make(map[string]string)
 
 func saveGitlabTokens() {
 	data, _ := json.MarshalIndent(gitlabTokens, "", "  ")
-	ioutil.WriteFile("tokens.json", data, 0600)
+	ioutil.WriteFile(*tokensPath, data, 0600)
 }
 
 func loadGitlabTokens() {
-	data, err := ioutil.ReadFile("tokens.json")
+	data, err := ioutil.ReadFile(*tokensPath)
 	if err != nil {
 		return
 	}
