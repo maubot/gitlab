@@ -8,7 +8,7 @@ COPY Gopkg.lock Gopkg.toml /go/src/maubot.xyz/gitlab/
 WORKDIR /go/src/maubot.xyz/gitlab
 RUN dep ensure -vendor-only
 
-COPY . /go/src/maubot.xyx/gitlab
+COPY . /go/src/maubot.xyz/gitlab
 RUN CGO_ENABLED=0 go build -o /usr/bin/maulabbot
 
 
