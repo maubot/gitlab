@@ -273,11 +273,14 @@ type Client struct {
 	UserAgent string
 
 	// Services used for talking to different parts of the GitLab API.
+	AccessRequests        *AccessRequestsService
 	AwardEmoji            *AwardEmojiService
 	Branches              *BranchesService
 	BuildVariables        *BuildVariablesService
 	BroadcastMessage      *BroadcastMessagesService
+	CIYMLTemplate         *CIYMLTemplatesService
 	Commits               *CommitsService
+	CustomAttribute       *CustomAttributesService
 	DeployKeys            *DeployKeysService
 	Deployments           *DeploymentsService
 	Environments          *EnvironmentsService
@@ -285,13 +288,17 @@ type Client struct {
 	Features              *FeaturesService
 	GitIgnoreTemplates    *GitIgnoreTemplatesService
 	Groups                *GroupsService
+	GroupIssueBoards      *GroupIssueBoardsService
 	GroupMembers          *GroupMembersService
 	GroupMilestones       *GroupMilestonesService
+	GroupVariables        *GroupVariablesService
 	Issues                *IssuesService
 	IssueLinks            *IssueLinksService
 	Jobs                  *JobsService
+	Keys                  *KeysService
 	Boards                *IssueBoardsService
 	Labels                *LabelsService
+	LicenseTemplates      *LicenseTemplatesService
 	MergeRequests         *MergeRequestsService
 	MergeRequestApprovals *MergeRequestApprovalsService
 	Milestones            *MilestonesService
@@ -304,7 +311,9 @@ type Client struct {
 	PipelineTriggers      *PipelineTriggersService
 	Projects              *ProjectsService
 	ProjectMembers        *ProjectMembersService
+	ProjectBadges         *ProjectBadgesService
 	ProjectSnippets       *ProjectSnippetsService
+	ProjectVariables      *ProjectVariablesService
 	ProtectedBranches     *ProtectedBranchesService
 	Repositories          *RepositoriesService
 	RepositoryFiles       *RepositoryFilesService
@@ -403,11 +412,14 @@ func newClient(httpClient *http.Client) *Client {
 	timeStats := &timeStatsService{client: c}
 
 	// Create all the public services.
+	c.AccessRequests = &AccessRequestsService{client: c}
 	c.AwardEmoji = &AwardEmojiService{client: c}
 	c.Branches = &BranchesService{client: c}
 	c.BuildVariables = &BuildVariablesService{client: c}
 	c.BroadcastMessage = &BroadcastMessagesService{client: c}
+	c.CIYMLTemplate = &CIYMLTemplatesService{client: c}
 	c.Commits = &CommitsService{client: c}
+	c.CustomAttribute = &CustomAttributesService{client: c}
 	c.DeployKeys = &DeployKeysService{client: c}
 	c.Deployments = &DeploymentsService{client: c}
 	c.Environments = &EnvironmentsService{client: c}
@@ -415,13 +427,17 @@ func newClient(httpClient *http.Client) *Client {
 	c.Features = &FeaturesService{client: c}
 	c.GitIgnoreTemplates = &GitIgnoreTemplatesService{client: c}
 	c.Groups = &GroupsService{client: c}
+	c.GroupIssueBoards = &GroupIssueBoardsService{client: c}
 	c.GroupMembers = &GroupMembersService{client: c}
 	c.GroupMilestones = &GroupMilestonesService{client: c}
+	c.GroupVariables = &GroupVariablesService{client: c}
 	c.Issues = &IssuesService{client: c, timeStats: timeStats}
 	c.IssueLinks = &IssueLinksService{client: c}
 	c.Jobs = &JobsService{client: c}
+	c.Keys = &KeysService{client: c}
 	c.Boards = &IssueBoardsService{client: c}
 	c.Labels = &LabelsService{client: c}
+	c.LicenseTemplates = &LicenseTemplatesService{client: c}
 	c.MergeRequests = &MergeRequestsService{client: c, timeStats: timeStats}
 	c.MergeRequestApprovals = &MergeRequestApprovalsService{client: c}
 	c.Milestones = &MilestonesService{client: c}
@@ -434,7 +450,9 @@ func newClient(httpClient *http.Client) *Client {
 	c.PipelineTriggers = &PipelineTriggersService{client: c}
 	c.Projects = &ProjectsService{client: c}
 	c.ProjectMembers = &ProjectMembersService{client: c}
+	c.ProjectBadges = &ProjectBadgesService{client: c}
 	c.ProjectSnippets = &ProjectSnippetsService{client: c}
+	c.ProjectVariables = &ProjectVariablesService{client: c}
 	c.ProtectedBranches = &ProtectedBranchesService{client: c}
 	c.Repositories = &RepositoriesService{client: c}
 	c.RepositoryFiles = &RepositoryFilesService{client: c}
@@ -492,8 +510,14 @@ func (c *Client) SetBaseURL(urlStr string) error {
 // request body.
 func (c *Client) NewRequest(method, path string, opt interface{}, options []OptionFunc) (*http.Request, error) {
 	u := *c.baseURL
-	// Set the encoded opaque data
-	u.Opaque = c.baseURL.Path + path
+	unescaped, err := url.PathUnescape(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the encoded path data
+	u.RawPath = c.baseURL.Path + path
+	u.Path = c.baseURL.Path + unescaped
 
 	if opt != nil {
 		q, err := query.Values(opt)
@@ -673,7 +697,7 @@ type ErrorResponse struct {
 }
 
 func (e *ErrorResponse) Error() string {
-	path, _ := url.QueryUnescape(e.Response.Request.URL.Opaque)
+	path, _ := url.QueryUnescape(e.Response.Request.URL.Path)
 	u := fmt.Sprintf("%s://%s%s", e.Response.Request.URL.Scheme, e.Response.Request.URL.Host, path)
 	return fmt.Sprintf("%s %s: %d %s", e.Response.Request.Method, u, e.Response.StatusCode, e.Message)
 }
@@ -833,4 +857,25 @@ func MergeMethod(v MergeMethodValue) *MergeMethodValue {
 	p := new(MergeMethodValue)
 	*p = v
 	return p
+}
+
+// BoolValue is a boolean value with advanced json unmarshaling features.
+type BoolValue bool
+
+// UnmarshalJSON allows 1 and 0 to be considered as boolean values
+// Needed for https://gitlab.com/gitlab-org/gitlab-ce/issues/50122
+func (t *BoolValue) UnmarshalJSON(b []byte) error {
+	switch string(b) {
+	case `"1"`:
+		*t = true
+		return nil
+	case `"0"`:
+		*t = false
+		return nil
+	default:
+		var v bool
+		err := json.Unmarshal(b, &v)
+		*t = BoolValue(v)
+		return err
+	}
 }

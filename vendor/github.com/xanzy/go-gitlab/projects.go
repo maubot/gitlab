@@ -282,6 +282,35 @@ func (s *ProjectsService) ListProjectsUsers(pid interface{}, opt *ListProjectUse
 	return p, resp, err
 }
 
+// ProjectLanguages is a map of strings because the response is arbitrary
+//
+// Gitlab API docs: https://docs.gitlab.com/ce/api/projects.html#languages
+type ProjectLanguages map[string]float32
+
+// GetProjectLanguages gets a list of languages used by the project
+//
+// GitLab API docs:  https://docs.gitlab.com/ce/api/projects.html#languages
+func (s *ProjectsService) GetProjectLanguages(pid interface{}, options ...OptionFunc) (*ProjectLanguages, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/languages", url.QueryEscape(project))
+
+	req, err := s.client.NewRequest("GET", u, nil, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	p := new(ProjectLanguages)
+	resp, err := s.client.Do(req, p)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return p, resp, err
+}
+
 // GetProject gets a specific project, identified by project ID or
 // NAMESPACE/PROJECT_NAME, which is owned by the authenticated user.
 //
@@ -371,7 +400,7 @@ func (s *ProjectsService) GetProjectEvents(pid interface{}, opt *GetProjectEvent
 
 // CreateProjectOptions represents the available CreateProjects() options.
 //
-// GitLab API docs: https://docs.gitlab.com/ce/api/projects.html#create-project
+// GitLab API docs: https://docs.gitlab.com/ee/api/projects.html#create-project
 type CreateProjectOptions struct {
 	Name                                      *string           `url:"name,omitempty" json:"name,omitempty"`
 	Path                                      *string           `url:"path,omitempty" json:"path,omitempty"`
@@ -397,6 +426,7 @@ type CreateProjectOptions struct {
 	TagList                                   *[]string         `url:"tag_list,omitempty" json:"tag_list,omitempty"`
 	PrintingMergeRequestLinkEnabled           *bool             `url:"printing_merge_request_link_enabled,omitempty" json:"printing_merge_request_link_enabled,omitempty"`
 	CIConfigPath                              *string           `url:"ci_config_path,omitempty" json:"ci_config_path,omitempty"`
+	ApprovalsBeforeMerge                      *int              `url:"approvals_before_merge" json:"approvals_before_merge"`
 }
 
 // CreateProject creates a new project owned by the authenticated user.
