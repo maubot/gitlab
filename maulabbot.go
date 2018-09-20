@@ -30,78 +30,78 @@ const (
 
 var spec = &maubot.CommandSpec{
 	Commands: []maubot.Command{{
-		Syntax: "gitlab ping",
+		Syntax:      "gitlab ping",
 		Description: "Ping the bot",
 	}, {
-		Syntax: "gitlab show $repo $hash",
+		Syntax:      "gitlab show $repo $hash",
 		Description: "Get details about a specific commit",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
-				Matches: `\w+/\w+`,
-				Required: false,
+				Matches:     `\w+/\w+`,
+				Required:    false,
 				Description: "The GitLab repository owner and name",
 			},
 			"$hash": {
-				Matches: "[a-z0-9]{5,40}",
-				Required: true,
+				Matches:     "[a-z0-9]{5,40}",
+				Required:    true,
 				Description: "The commit hash to get",
 			},
 		},
 	}, {
-		Syntax: "gitlab diff $repo $hash",
+		Syntax:      "gitlab diff $repo $hash",
 		Description: "Get the diff of a specific commit",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
-				Matches: `\w+/\w+`,
-				Required: false,
+				Matches:     `\w+/\w+`,
+				Required:    false,
 				Description: "The GitLab repository owner and name",
 			},
 			"$hash": {
-				Matches: "[a-z0-9]{5,40}",
-				Required: true,
+				Matches:     "[a-z0-9]{5,40}",
+				Required:    true,
 				Description: "The commit hash to get",
 			},
 		},
 	}, {
-		Syntax: "gitlab log $repo $num $page",
+		Syntax:      "gitlab log $repo $num $page",
 		Description: "Get the log of a specific repo",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
-				Matches: `\w+/\w+`,
-				Required: false,
+				Matches:     `\w+/\w+`,
+				Required:    false,
 				Description: "The GitLab repository owner and name",
 			},
 			"$num": {
-				Matches: "[0-9]{1,2}",
-				Required: false,
+				Matches:     "[0-9]{1,2}",
+				Required:    false,
 				Description: "The number of commits to show per page",
 			},
 			"$page": {
-				Matches: "[0-9]+",
-				Required: false,
+				Matches:     "[0-9]+",
+				Required:    false,
 				Description: "The page to show",
 			},
 		},
 	}, {
-		Syntax: "gitlab whoami",
+		Syntax:      "gitlab whoami",
 		Description: "Check who you're logged in as",
 	}, {
-		Syntax: "gitlab logout",
+		Syntax:      "gitlab logout",
 		Description: "Remove your GitLab access token from storage",
 	}, {
-		Syntax: "gitlab login $token",
+		Syntax:      "gitlab login $token",
 		Description: "Add a GitLab access token to storage",
 		Arguments: maubot.ArgumentMap{
 			"$token": {
-				Matches: "[A-Za-z0-9]+",
-				Required: true,
+				Matches:     "[A-Za-z0-9]+",
+				Required:    true,
 				Description: "Your GitLab access token",
 			},
 		},
 	}},
 	PassiveCommands: []maubot.PassiveCommand{{
-		Name: CommandIssueExpansion,
-		Matches: `((\w+?/)?(\w+?))?0#([0-9]+)`,
+		Name:         CommandIssueExpansion,
+		Matches:      `((\w+?/)?(\w+?))?0#([0-9]+)`,
 		MatchAgainst: maubot.MatchAgainstBody,
 	}},
 }
@@ -115,7 +115,7 @@ func (bot *MauLabBot) Stop() {
 }
 
 var Plugin = maubot.PluginCreator{
-	Create: func(client maubot.MatrixClient) maubot.Plugin {
+	Create: func(client maubot.MatrixClient, log maubot.Logger) maubot.Plugin {
 		return &MauLabBot{
 			client: client,
 		}
