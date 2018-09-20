@@ -17,23 +17,40 @@
 package main
 
 import (
+	"net/http"
+
 	"maubot.xyz"
 )
 
 type MauLabBot struct {
 	client maubot.MatrixClient
+	log    maubot.Logger
+	server *http.Server
 }
 
+// Active commands
 const (
-	CommandIssueExpansion = "issue_expansion"
+	CommandPing           = "gitlab ping"
+	CommandShowCommit     = "gitlab show $repo $hash"
+	CommandShowCommitDiff = "gitlab diff $repo $hash"
+	CommandLog            = "gitlab log $repo $num $page"
+	CommandWhoami         = "gitlab whoami"
+	CommandLogout         = "gitlab logout"
+	CommandLogin          = "gitlab login $token"
+)
+
+// Passive commands
+const (
+	CommandIssueExpansion        = "issue_expansion"
+	CommandMergeRequestExpansion = "merge_request_expansion"
 )
 
 var spec = &maubot.CommandSpec{
 	Commands: []maubot.Command{{
-		Syntax:      "gitlab ping",
+		Syntax:      CommandPing,
 		Description: "Ping the bot",
 	}, {
-		Syntax:      "gitlab show $repo $hash",
+		Syntax:      CommandShowCommit,
 		Description: "Get details about a specific commit",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
@@ -48,7 +65,7 @@ var spec = &maubot.CommandSpec{
 			},
 		},
 	}, {
-		Syntax:      "gitlab diff $repo $hash",
+		Syntax:      CommandShowCommitDiff,
 		Description: "Get the diff of a specific commit",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
@@ -63,7 +80,7 @@ var spec = &maubot.CommandSpec{
 			},
 		},
 	}, {
-		Syntax:      "gitlab log $repo $num $page",
+		Syntax:      CommandLog,
 		Description: "Get the log of a specific repo",
 		Arguments: maubot.ArgumentMap{
 			"$repo": {
@@ -83,13 +100,13 @@ var spec = &maubot.CommandSpec{
 			},
 		},
 	}, {
-		Syntax:      "gitlab whoami",
+		Syntax:      CommandWhoami,
 		Description: "Check who you're logged in as",
 	}, {
-		Syntax:      "gitlab logout",
+		Syntax:      CommandLogout,
 		Description: "Remove your GitLab access token from storage",
 	}, {
-		Syntax:      "gitlab login $token",
+		Syntax:      CommandLogin,
 		Description: "Add a GitLab access token to storage",
 		Arguments: maubot.ArgumentMap{
 			"$token": {
@@ -103,21 +120,27 @@ var spec = &maubot.CommandSpec{
 		Name:         CommandIssueExpansion,
 		Matches:      `((\w+?/)?(\w+?))?0#([0-9]+)`,
 		MatchAgainst: maubot.MatchAgainstBody,
+	}, {
+		Name:         CommandMergeRequestExpansion,
+		Matches:      `((\w+?/)?(\w+?))?0!([0-9]+)`,
+		MatchAgainst: maubot.MatchAgainstBody,
 	}},
 }
 
 func (bot *MauLabBot) Start() {
 	bot.client.SetCommandSpec(spec)
+	go bot.startWebhook()
 }
 
 func (bot *MauLabBot) Stop() {
-
+	bot.stopWebhook()
 }
 
 var Plugin = maubot.PluginCreator{
 	Create: func(client maubot.MatrixClient, log maubot.Logger) maubot.Plugin {
 		return &MauLabBot{
 			client: client,
+			log:    log,
 		}
 	},
 	Name:    "maubot.xyz/gitlab",
