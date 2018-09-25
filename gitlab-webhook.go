@@ -56,9 +56,6 @@ func handlePayload(hook *gitlab.Webhook) func(w http.ResponseWriter, r *http.Req
 		}
 		room := mxbot.GetRoom(roomID)
 		switch payload.(type) {
-		//case gitlab.ConfidentialIssueEventPayload:
-		//case gitlab.WikiPageEventPayload:
-		//case gitlab.BuildEventPayload:
 		case gitlab.PushEventPayload:
 			handlePushEvent(payload, *room)
 		case gitlab.TagEventPayload:
@@ -71,6 +68,10 @@ func handlePayload(hook *gitlab.Webhook) func(w http.ResponseWriter, r *http.Req
 			handleMergeRequestEvent(payload, *room)
 		case gitlab.PipelineEventPayload:
 			handlePipelineEvent(payload, *room)
+		case gitlab.WikiPageEventPayload:
+			handleWikiPageEvent(payload, *room)
+			//case gitlab.ConfidentialIssueEventPayload:
+			//case gitlab.BuildEventPayload:
 		}
 
 		w.WriteHeader(204)
@@ -256,11 +257,30 @@ func handlePipelineEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.PipelineEventPayload)
 
 	room.SendfHTML(
-		"[%[1]s/%[2]s] pipeline %[7]d results: %[3]s in %[4]d seconds <a href='%[5]s'>%[6]s (!%[7]d)</a>",
+		"[<a href='%[5]s'>%[1]s/%[2]s</a>] pipeline %[7]d complete, %[3]s in %[4]d seconds %[6]s",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.ObjectAttributes.Status,
 		data.ObjectAttributes.Duration,
+		data.ObjectAttributes.URL,
+		data.ObjectAttributes.Title,
+		data.ObjectAttributes.IID)
+}
+
+func handleWikiPageEvent(payload interface{}, room mautrix.Room) {
+	data := payload.(gitlab.WikiPageEventPayload)
+
+	action := data.ObjectAttributes.Action
+
+	if !strings.HasSuffix(action, "e") {
+		action += "e"
+	}
+	room.SendfHTML(
+		"[%[1]s/%[2]s] %[3]s %[4]sd page on wiki <a href='%[5]s'>%[6]s (#%[7]d)</a>",
+		data.Project.Namespace,
+		data.Project.Name,
+		data.User.Name,
+		action,
 		data.ObjectAttributes.URL,
 		data.ObjectAttributes.Title,
 		data.ObjectAttributes.IID)
