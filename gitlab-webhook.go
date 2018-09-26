@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/go-playground/webhooks.v5/gitlab"
 	"maunium.net/go/mautrix"
@@ -256,15 +257,33 @@ func handleCommentEvent(payload interface{}, room mautrix.Room) {
 func handlePipelineEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.PipelineEventPayload)
 
+	var pluralizer = ""
+	if len(data.Builds) != 1 {
+		pluralizer = "s"
+	}
+
+	duration := fmt.Sprintf("%ds", data.ObjectAttributes.Duration)
+	if d, err := time.ParseDuration(duration); err == nil {
+		duration = d.String()
+	}
+
 	room.SendfHTML(
-		"[<a href='%[5]s'>%[1]s/%[2]s</a>] pipeline %[7]d complete, %[3]s in %[4]d seconds %[6]s",
+		"[%[1]s/%[2]s] %[3]d pipeline%[4]s complete in %[5]s",
 		data.Project.Namespace,
 		data.Project.Name,
-		data.ObjectAttributes.Status,
-		data.ObjectAttributes.Duration,
-		data.ObjectAttributes.URL,
-		data.ObjectAttributes.Title,
-		data.ObjectAttributes.IID)
+		len(data.Builds),
+		pluralizer,
+		duration)
+
+	for _, b := range data.Builds {
+		room.SendfHTML(
+			"<ul><li><a href='%[1]s/-/jobs/%[2]d'>%[3]s:%[4]s (%[2]d)</a> %[5]s</li></ul>",
+			data.Project.WebURL,
+			b.ID,
+			b.Name,
+			b.Stage,
+			b.Status)
+	}
 }
 
 func handleWikiPageEvent(payload interface{}, room mautrix.Room) {
