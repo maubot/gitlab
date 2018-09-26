@@ -14,8 +14,8 @@ Matrix room: [#maulabbot:maunium.net](https://matrix.to/#/#maulabbot:maunium.net
 		* [X] Comments
 	* [X] Push events
 	* [x] Tag creation
-	* [ ] Pipeline events
-	* [ ] Wiki page edits
+	* [x] Pipeline events
+	* [x] Wiki page edits
 * [x] Log in to GitLab accounts (per-user)
 	* [ ] [Maybe] Allow logging in to multiple GitLab servers and add a per-room config of which server to use in that room by default.
 * [x] Commits
