@@ -1,26 +1,28 @@
 // maulabbot - A Gitlab bot for Matrix
-// Copyright (C) 2017 Tulir Asokan
+// Copyright (C) 2018 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
+// it under the terms of the GNU Affero General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// GNU Affero General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
@@ -39,42 +41,44 @@ func addRoomToHeaders(handler http.Handler) http.Handler {
 	})
 }
 
-func startWebhook() func() {
+func (bot *MauLabBot) startWebhook() {
 	hook := gitlab.New(&gitlab.Config{Secret: config.Webhook.Secret})
-	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
-	hook.RegisterEvents(handleTagEvent, gitlab.TagEvents)
-	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
-	hook.RegisterEvents(handleIssueEvent, gitlab.ConfidentialIssuesEvents)
-	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
-	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
+	hook.RegisterEvents(bot.handlePushEvent, gitlab.PushEvents)
+	hook.RegisterEvents(bot.handleTagEvent, gitlab.TagEvents)
+	hook.RegisterEvents(bot.handleIssueEvent, gitlab.IssuesEvents)
+	hook.RegisterEvents(bot.handleIssueEvent, gitlab.ConfidentialIssuesEvents)
+	hook.RegisterEvents(bot.handleMergeRequestEvent, gitlab.MergeRequestEvents)
+	hook.RegisterEvents(bot.handleCommentEvent, gitlab.CommentEvents)
 
-	server := &http.Server{Addr: config.Webhook.Listen}
+	bot.server = &http.Server{Addr: config.Webhook.Listen}
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle(config.Webhook.Path, addRoomToHeaders(webhooks.Handler(hook)))
 
-		server.Handler = mux
+		bot.server.Handler = mux
 
-		fmt.Println("Listening to GitLab webhooks at", config.Webhook.Listen+config.Webhook.Path)
-		err := server.ListenAndServe()
+		bot.log.Infoln("Listening to GitLab webhooks at", config.Webhook.Listen+config.Webhook.Path)
+		err := bot.server.ListenAndServe()
 		if err != nil {
-			fmt.Println(err)
+			bot.log.Errorln("GitLab webhook listener errored:", err)
 		}
 	}()
-	return func() {
-		server.Shutdown(nil)
-	}
 }
 
-func handlePushEvent(payload interface{}, header webhooks.Header) {
+func (bot *MauLabBot) stopWebhook() {
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+	defer cancel()
+	bot.server.Shutdown(ctx)
+}
+
+func (bot *MauLabBot) handlePushEvent(payload interface{}, header webhooks.Header) {
 	data := payload.(gitlab.PushEventPayload)
 	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	branch := strings.TrimPrefix(data.Ref, "refs/heads/")
 	if data.TotalCommitsCount == 0 {
-		room.SendfHTML(
-			"[%[3]s/%[4]s] %[5]s force pushed to or deleted branch <a href='%[1]s/tree/%[2]s'>%[2]s</a>",
+		bot.client.SendMessagef(roomID,
+			"[%[3]s/%[4]s] %[5]s force pushed to or deleted branch [%[2]s](%[1]s/tree/%[2]s)",
 			data.Project.WebURL,
 			branch,
 			data.Project.Namespace,
@@ -83,57 +87,43 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 		return
 	}
 
+	var commits bytes.Buffer
+	for i := len(data.Commits) - 1; i >= 0; i-- {
+		commit := data.Commits[i]
+		lines := strings.Split(commit.Message, "\n")
+		message := lines[0]
+		if len(lines) > 1 && len(strings.Join(lines[1:], "")) > 0 {
+			message += " (...)"
+		}
+		fmt.Fprintf(&commits, "* %s (%s)\n", message, commit.ID[:8])
+	}
+
 	var pluralizer = ""
 	if data.TotalCommitsCount != 1 {
 		pluralizer = "s"
 	}
-	room.SendfHTML(
-		"[<a href='%[1]s/tree/%[2]s'>%[3]s/%[4]s#%[2]s</a>] %[5]d new commit%[7]s by %[6]s",
+
+	bot.client.SendMessagef(roomID,
+		"[[%[3]s/%[4]s#%[2]s](%[1]s/tree/%[2]s)] %[5]d new commit%[7]s by %[6]s\n\n%[8]s",
 		data.Project.WebURL,
 		branch,
 		data.Project.Namespace,
 		data.Project.Name,
 		data.TotalCommitsCount,
 		data.UserName,
-		pluralizer)
-	// IRC compatibility: Allow up to 4 commits to be displayed through the IRC bridge without
-	// 					  having the bridge turn the message into a link.
-	if data.TotalCommitsCount > 4 || !config.Options.IRCCompatibility {
-		var msg bytes.Buffer
-		fmt.Fprint(&msg, "<ul>")
-		for i := len(data.Commits) - 1; i >= 0; i-- {
-			commit := data.Commits[i]
-			lines := strings.Split(commit.Message, "\n")
-			message := lines[0]
-			if len(lines) > 1 && len(strings.Join(lines[1:], "")) > 0 {
-				message += " (...)"
-			}
-			fmt.Fprintf(&msg, "<li>%s (%s)</li>\n", message, commit.ID[:8])
-		}
-		fmt.Fprint(&msg, "</ul>")
-		room.SendHTML(msg.String())
-	} else {
-		for i := len(data.Commits) - 1; i >= 0; i-- {
-			commit := data.Commits[i]
-			lines := strings.Split(commit.Message, "\n")
-			message := lines[0]
-			if len(lines) > 1 && len(strings.Join(lines[1:], "")) > 0 {
-				message += " (...)"
-			}
-			room.SendfHTML("<ul><li>%s (%s)</li></ul>", message, commit.ID[:8])
-		}
-	}
+		pluralizer,
+		commits.String())
 }
 
-func handleTagEvent(payload interface{}, header webhooks.Header) {
+func (bot *MauLabBot) handleTagEvent(payload interface{}, header webhooks.Header) {
 	data := payload.(gitlab.TagEventPayload)
 	if data.ObjectKind != "tag_push" {
 		return
 	}
 	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 	tag := strings.TrimPrefix(data.Ref, "refs/tags/")
-	room.SendfHTML("[%[1]s/%[2]s] %[3]s created tag <a href='%[4]s/tags/%[5]s'>%[5]s</a>",
+	bot.client.SendMessagef(roomID,
+		"[%[1]s/%[2]s] %[3]s created tag [%[5]s](%[4]s/tags/%[5]s)",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.UserName,
@@ -141,7 +131,7 @@ func handleTagEvent(payload interface{}, header webhooks.Header) {
 		tag)
 }
 
-func handleIssueEvent(payload interface{}, header webhooks.Header) {
+func (bot *MauLabBot) handleIssueEvent(payload interface{}, header webhooks.Header) {
 	data, ok := payload.(gitlab.IssueEventPayload)
 	confidential := ""
 	if !ok {
@@ -154,7 +144,6 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 		data = data2.IssueEventPayload
 	}
 	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	var action = data.ObjectAttributes.Action
 	if action == "update" || len(action) == 0 {
@@ -162,8 +151,8 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 	} else if !strings.HasSuffix(action, "e") {
 		action += "e"
 	}
-	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd %[5]sissue <a href='%[6]s'>%[7]s (#%[8]d)</a>",
+	bot.client.SendMessagef(roomID,
+		"[%[1]s/%[2]s] %[3]s %[4]sd %[5]sissue [%[7]s (#%[8]d)](%[6]s)",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
@@ -174,10 +163,9 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 		data.ObjectAttributes.IID)
 }
 
-func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
+func (bot *MauLabBot) handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 	data := payload.(gitlab.MergeRequestEventPayload)
 	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	var action = data.ObjectAttributes.Action
 	if action == "update" {
@@ -185,8 +173,8 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 	} else if !strings.HasSuffix(action, "e") {
 		action += "e"
 	}
-	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd merge request <a href='%[5]s'>%[6]s (!%[7]d)</a>",
+	bot.client.SendMessagef(roomID,
+		"[%[1]s/%[2]s] %[3]s %[4]sd merge request [%[6]s (!%[7]d)](%[5]s)",
 		data.ObjectAttributes.Target.Namespace,
 		data.ObjectAttributes.Target.Name,
 		data.User.Name,
@@ -196,10 +184,9 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 		data.ObjectAttributes.IID)
 }
 
-func handleCommentEvent(payload interface{}, header webhooks.Header) {
+func (bot *MauLabBot) handleCommentEvent(payload interface{}, header webhooks.Header) {
 	data := payload.(gitlab.CommentEventPayload)
 	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	var notebookType, title string
 	var notebookIdentifier rune
@@ -217,8 +204,8 @@ func handleCommentEvent(payload interface{}, header webhooks.Header) {
 		id = data.MergeRequest.IID
 	}
 
-	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (%[8]c%[7]d)",
+	bot.client.SendMessagef(roomID,
+		"[%[1]s/%[2]s] %[3]s [commented](%[5]s) on %[4]s %[6]s (%[8]c%[7]d)",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,

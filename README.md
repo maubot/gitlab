@@ -1,7 +1,7 @@
 Maunium GitLab bot
 ==================
 A Gitlab bot for Matrix. It uses
-[mautrix](https://github.com/tulir/mautrix),
+[maubot](https://github.com/maubot/maubot),
 [go-playground webhooks](https://github.com/go-playground/webhooks) and
 [go-gitlab](https://github.com/xanzy/go-gitlab)
 
@@ -30,8 +30,8 @@ Matrix room: [#maulabbot:maunium.net](https://matrix.to/#/#maulabbot:maunium.net
 * [ ] Shorter commands
 
 ## Usage
-Configure the server by copying `example-config.json` to `config.json` and
-filling out the fields.
+~~Configure the server by copying `example-config.json` to `config.json` and
+filling out the fields.~~
 
 ### Webhooks
 When adding a GitLab webhook, add the internal room ID as a query string in the

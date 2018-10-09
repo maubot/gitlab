@@ -4,35 +4,26 @@
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/google/go-querystring"
   packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/grokify/html-strip-tags-go"
   packages = ["."]
-  revision = "3f8856873ce5730282807732a0413fcf7c98cc58"
+  revision = "e9e44961e26f513866063f54bf85070db95600f7"
 
 [[projects]]
   name = "github.com/xanzy/go-gitlab"
   packages = ["."]
-  revision = "79dad8e74fd097eb2e0fd0883f1978213e88107a"
-  version = "v0.10.7"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp"
-  ]
-  revision = "32a936f46389aa10549d60bd7833e54b01685d09"
+  revision = "0e1a0aad2f7404e9ad14018b02315af5c2f12ffb"
+  version = "v0.11.1"
 
 [[projects]]
   branch = "master"
@@ -41,7 +32,7 @@
     ".",
     "internal"
   ]
-  revision = "ef147856a6ddbb60760db74283d2424e98c87bff"
+  revision = "d2e6202438beef2727060aa7cabdd924d92ebfd9"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -54,8 +45,8 @@
     "internal/urlfetch",
     "urlfetch"
   ]
-  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
-  version = "v1.1.0"
+  revision = "ae0ab99deb4dc413a2b4bd6c8bdd0eb67f1e4d06"
+  version = "v1.2.0"
 
 [[projects]]
   name = "gopkg.in/go-playground/webhooks.v3"
@@ -66,21 +57,9 @@
   revision = "8ffb2ffc32b7af2c7e940944eccba4dcd66c692a"
   version = "v3.13.0"
 
-[[projects]]
-  branch = "master"
-  name = "maunium.net/go/mauflag"
-  packages = ["."]
-  revision = "8337821952ba5e919673bd62c502d43474e5e71d"
-
-[[projects]]
-  branch = "master"
-  name = "maunium.net/go/mautrix"
-  packages = ["."]
-  revision = "1b6683bcd21d4ae78e5d2831a75e2f628f54de3b"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9ff7725e79e4aab9ef22ce44561ba126be32b6803fec86959b10faafebce7d9a"
+  inputs-digest = "53a44a7355fcf57eb72c80256ec8c2d1ff78cc7b97740628e5f3311ded307df1"
   solver-name = "gps-cdcl"
   solver-version = 1
