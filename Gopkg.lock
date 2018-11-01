@@ -2,48 +2,61 @@
 
 
 [[projects]]
+  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
-  version = "v1.1.0"
+  pruneopts = "UT"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
-  branch = "master"
+  digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
   name = "github.com/google/go-querystring"
   packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+  pruneopts = "UT"
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:8dbe76014be3c83806abc61befcb5e1789d2d872bc8f98a8fb955405550c63be"
   name = "github.com/grokify/html-strip-tags-go"
   packages = ["."]
-  revision = "3f8856873ce5730282807732a0413fcf7c98cc58"
+  pruneopts = "UT"
+  revision = "e9e44961e26f513866063f54bf85070db95600f7"
 
 [[projects]]
+  digest = "1:f0a751f9c93fde1a5810ad158a07d6fa1b4ee8a8f2f632488b0277a6e815befc"
   name = "github.com/xanzy/go-gitlab"
   packages = ["."]
-  revision = "79dad8e74fd097eb2e0fd0883f1978213e88107a"
-  version = "v0.10.7"
+  pruneopts = "UT"
+  revision = "4f616cbce6a5f335461881701f772d8b8e16c2f6"
+  version = "v0.10.8"
 
 [[projects]]
   branch = "master"
+  digest = "1:d6b719875cf8091fbab38527d81d34e71f4521b9ee9ccfbd4a32cff2ac5af96e"
   name = "golang.org/x/net"
   packages = [
     "context",
-    "context/ctxhttp"
+    "context/ctxhttp",
   ]
-  revision = "32a936f46389aa10549d60bd7833e54b01685d09"
+  pruneopts = "UT"
+  revision = "f04abc6bdfa7a0171a8a0c9fd2ada9391044d056"
 
 [[projects]]
   branch = "master"
+  digest = "1:363b547c971a2b07474c598b6e9ebcb238d556d8a27f37b3895ad20cd50e7281"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
-    "internal"
+    "internal",
   ]
-  revision = "ef147856a6ddbb60760db74283d2424e98c87bff"
+  pruneopts = "UT"
+  revision = "d2e6202438beef2727060aa7cabdd924d92ebfd9"
 
 [[projects]]
+  digest = "1:6247f76e55a1e1a5c19a81e2d4b4dff6730461eeb5bbb0a16dd4a8ec8637ee93"
   name = "google.golang.org/appengine"
   packages = [
     "internal",
@@ -52,35 +65,44 @@
     "internal/log",
     "internal/remote_api",
     "internal/urlfetch",
-    "urlfetch"
+    "urlfetch",
   ]
-  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
-  version = "v1.1.0"
+  pruneopts = "UT"
+  revision = "ae0ab99deb4dc413a2b4bd6c8bdd0eb67f1e4d06"
+  version = "v1.2.0"
 
 [[projects]]
-  name = "gopkg.in/go-playground/webhooks.v3"
-  packages = [
-    ".",
-    "gitlab"
-  ]
-  revision = "8ffb2ffc32b7af2c7e940944eccba4dcd66c692a"
-  version = "v3.13.0"
+  digest = "1:f43eac4b4ed27f6f4e1561d822cae2958051c829bf90aa183f46460a20b5c810"
+  name = "gopkg.in/go-playground/webhooks.v5"
+  packages = ["gitlab"]
+  pruneopts = "UT"
+  revision = "3fda9e72e1794aa20baca8d0edf5c73888d02eba"
+  version = "v5.1.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:184639f9d6556e9afb2549cab03863a1496039b2d9b184ab368e6b32ae106097"
   name = "maunium.net/go/mauflag"
   packages = ["."]
+  pruneopts = "UT"
   revision = "8337821952ba5e919673bd62c502d43474e5e71d"
 
 [[projects]]
   branch = "master"
+  digest = "1:ff09b43951848908cd253e9bcb40a95749508043666b903e71fc0f00372d9786"
   name = "maunium.net/go/mautrix"
   packages = ["."]
+  pruneopts = "UT"
   revision = "1b6683bcd21d4ae78e5d2831a75e2f628f54de3b"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9ff7725e79e4aab9ef22ce44561ba126be32b6803fec86959b10faafebce7d9a"
+  input-imports = [
+    "github.com/xanzy/go-gitlab",
+    "gopkg.in/go-playground/webhooks.v5/gitlab",
+    "maunium.net/go/mauflag",
+    "maunium.net/go/mautrix",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1

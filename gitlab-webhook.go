@@ -21,37 +21,72 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
-	"gopkg.in/go-playground/webhooks.v3"
-	"gopkg.in/go-playground/webhooks.v3/gitlab"
+	"gopkg.in/go-playground/webhooks.v5/gitlab"
+	"maunium.net/go/mautrix"
 )
 
-func addRoomToHeaders(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		room := r.URL.Query().Get("room")
-		if len(room) == 0 {
+func handlePayload(hook *gitlab.Webhook) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		payload, err := hook.Parse(
+			r,
+			gitlab.PushEvents,
+			gitlab.TagEvents,
+			gitlab.IssuesEvents,
+			gitlab.CommentEvents,
+			gitlab.MergeRequestEvents,
+			gitlab.PipelineEvents,
+			//gitlab.ConfidentialIssuesEvents,
+			//gitlab.WikiPageEvents,
+			//gitlab.BuildEvents,
+		)
+		if err != nil {
+			if err == gitlab.ErrEventNotFound {
+				w.WriteHeader(500)
+				w.Write([]byte("Event not found"))
+				return
+			}
+		}
+
+		roomID := r.URL.Query().Get("room")
+		if len(roomID) == 0 {
 			w.WriteHeader(400)
 			w.Write([]byte("No room specified."))
 			return
 		}
-		r.Header.Set("X-Room-Id", room)
-		handler.ServeHTTP(w, r)
-	})
+		room := mxbot.GetRoom(roomID)
+		switch payload.(type) {
+		case gitlab.PushEventPayload:
+			handlePushEvent(payload, *room)
+		case gitlab.TagEventPayload:
+			handleTagEvent(payload, *room)
+		case gitlab.IssueEventPayload:
+			handleIssueEvent(payload, *room)
+		case gitlab.CommentEventPayload:
+			handleCommentEvent(payload, *room)
+		case gitlab.MergeRequestEventPayload:
+			handleMergeRequestEvent(payload, *room)
+		case gitlab.PipelineEventPayload:
+			handlePipelineEvent(payload, *room)
+		case gitlab.WikiPageEventPayload:
+			handleWikiPageEvent(payload, *room)
+			//case gitlab.ConfidentialIssueEventPayload:
+			//case gitlab.BuildEventPayload:
+		}
+
+		w.WriteHeader(204)
+		return
+	}
 }
 
 func startWebhook() func() {
-	hook := gitlab.New(&gitlab.Config{Secret: config.Webhook.Secret})
-	hook.RegisterEvents(handlePushEvent, gitlab.PushEvents)
-	hook.RegisterEvents(handleTagEvent, gitlab.TagEvents)
-	hook.RegisterEvents(handleIssueEvent, gitlab.IssuesEvents)
-	hook.RegisterEvents(handleIssueEvent, gitlab.ConfidentialIssuesEvents)
-	hook.RegisterEvents(handleMergeRequestEvent, gitlab.MergeRequestEvents)
-	hook.RegisterEvents(handleCommentEvent, gitlab.CommentEvents)
+	hook, _ := gitlab.New(gitlab.Options.Secret(config.Webhook.Secret))
 
 	server := &http.Server{Addr: config.Webhook.Listen}
 	go func() {
 		mux := http.NewServeMux()
-		mux.Handle(config.Webhook.Path, addRoomToHeaders(webhooks.Handler(hook)))
+		mux.Handle(config.Webhook.Path, http.HandlerFunc(handlePayload(hook)))
 
 		server.Handler = mux
 
@@ -66,10 +101,8 @@ func startWebhook() func() {
 	}
 }
 
-func handlePushEvent(payload interface{}, header webhooks.Header) {
+func handlePushEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.PushEventPayload)
-	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	branch := strings.TrimPrefix(data.Ref, "refs/heads/")
 	if data.TotalCommitsCount == 0 {
@@ -125,13 +158,11 @@ func handlePushEvent(payload interface{}, header webhooks.Header) {
 	}
 }
 
-func handleTagEvent(payload interface{}, header webhooks.Header) {
+func handleTagEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.TagEventPayload)
 	if data.ObjectKind != "tag_push" {
 		return
 	}
-	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 	tag := strings.TrimPrefix(data.Ref, "refs/tags/")
 	room.SendfHTML("[%[1]s/%[2]s] %[3]s created tag <a href='%[4]s/tags/%[5]s'>%[5]s</a>",
 		data.Project.Namespace,
@@ -141,7 +172,7 @@ func handleTagEvent(payload interface{}, header webhooks.Header) {
 		tag)
 }
 
-func handleIssueEvent(payload interface{}, header webhooks.Header) {
+func handleIssueEvent(payload interface{}, room mautrix.Room) {
 	data, ok := payload.(gitlab.IssueEventPayload)
 	confidential := ""
 	if !ok {
@@ -153,10 +184,8 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 		confidential = "confidential "
 		data = data2.IssueEventPayload
 	}
-	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
-	var action = data.ObjectAttributes.Action
+	action := data.ObjectAttributes.Action
 	if action == "update" || len(action) == 0 {
 		return
 	} else if !strings.HasSuffix(action, "e") {
@@ -174,12 +203,10 @@ func handleIssueEvent(payload interface{}, header webhooks.Header) {
 		data.ObjectAttributes.IID)
 }
 
-func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
+func handleMergeRequestEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.MergeRequestEventPayload)
-	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
-	var action = data.ObjectAttributes.Action
+	action := data.ObjectAttributes.Action
 	if action == "update" {
 		return
 	} else if !strings.HasSuffix(action, "e") {
@@ -196,10 +223,8 @@ func handleMergeRequestEvent(payload interface{}, header webhooks.Header) {
 		data.ObjectAttributes.IID)
 }
 
-func handleCommentEvent(payload interface{}, header webhooks.Header) {
+func handleCommentEvent(payload interface{}, room mautrix.Room) {
 	data := payload.(gitlab.CommentEventPayload)
-	roomID := header["X-Room-Id"][0]
-	room := mxbot.GetRoom(roomID)
 
 	var notebookType, title string
 	var notebookIdentifier rune
@@ -227,4 +252,55 @@ func handleCommentEvent(payload interface{}, header webhooks.Header) {
 		title,
 		id,
 		notebookIdentifier)
+}
+
+func handlePipelineEvent(payload interface{}, room mautrix.Room) {
+	data := payload.(gitlab.PipelineEventPayload)
+
+	var pluralizer = ""
+	if len(data.Builds) != 1 {
+		pluralizer = "s"
+	}
+
+	duration := fmt.Sprintf("%ds", data.ObjectAttributes.Duration)
+	if d, err := time.ParseDuration(duration); err == nil {
+		duration = d.String()
+	}
+
+	room.SendfHTML(
+		"[%[1]s/%[2]s] %[3]d pipeline%[4]s complete in %[5]s",
+		data.Project.Namespace,
+		data.Project.Name,
+		len(data.Builds),
+		pluralizer,
+		duration)
+
+	for _, b := range data.Builds {
+		room.SendfHTML(
+			"<ul><li><a href='%[1]s/-/jobs/%[2]d'>%[3]s:%[4]s (%[2]d)</a> %[5]s</li></ul>",
+			data.Project.WebURL,
+			b.ID,
+			b.Name,
+			b.Stage,
+			b.Status)
+	}
+}
+
+func handleWikiPageEvent(payload interface{}, room mautrix.Room) {
+	data := payload.(gitlab.WikiPageEventPayload)
+
+	action := data.ObjectAttributes.Action
+
+	if !strings.HasSuffix(action, "e") {
+		action += "e"
+	}
+	room.SendfHTML(
+		"[%[1]s/%[2]s] %[3]s %[4]sd page on wiki <a href='%[5]s'>%[6]s (#%[7]d)</a>",
+		data.Project.Namespace,
+		data.Project.Name,
+		data.User.Name,
+		action,
+		data.ObjectAttributes.URL,
+		data.ObjectAttributes.Title,
+		data.ObjectAttributes.IID)
 }
