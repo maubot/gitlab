@@ -1,7 +1,7 @@
 Maunium GitLab bot
 ==================
 A Gitlab bot for Matrix. It uses
-[mautrix](https://github.com/tulir/mautrix),
+[mautrix](https://github.com/tulir/mautrix-go/tree/legacy),
 [go-playground webhooks](https://github.com/go-playground/webhooks) and
 [go-gitlab](https://github.com/xanzy/go-gitlab)
 
@@ -30,8 +30,17 @@ Matrix room: [#maulabbot:maunium.net](https://matrix.to/#/#maulabbot:maunium.net
 * [ ] Shorter commands
 
 ## Usage
-Configure the server by copying `example-config.json` to `config.json` and
+Configure the bot by copying `example-config.json` to `config.json` and
 filling out the fields.
+
+### Docker
+0. Create a directory for the bot and cd into it.
+1. Pull the docker image with `docker pull docker.io/maubot/gitlab:latest`.
+2. Make a config file as described above
+3. Run the bot:
+   ```
+   docker run --restart unless-stopped -v `pwd`:/etc/maulabbot:z docker.io/maubot/gitlab:latest
+   ```
 
 ### Webhooks
 When adding a GitLab webhook, add the internal room ID as a query string in the
