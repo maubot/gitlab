@@ -50,10 +50,10 @@ func loginGitlab(userID, token string) string {
 	}
 
 	user, resp, err := git.Users.CurrentUser()
-	if resp.StatusCode == 401 {
-		return fmt.Sprintf("Invalid access token!")
-	} else if err != nil {
+	if err != nil {
 		return fmt.Sprintf("GitLab login failed: %s", err)
+	} else if resp.StatusCode == 401 {
+		return fmt.Sprintf("Invalid access token!")
 	}
 
 	gitlabTokens[userID] = token
