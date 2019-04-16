@@ -38,7 +38,7 @@ func handlePayload(hook *gitlab.Webhook) func(w http.ResponseWriter, r *http.Req
 			gitlab.MergeRequestEvents,
 			gitlab.PipelineEvents,
 			//gitlab.ConfidentialIssuesEvents,
-			//gitlab.WikiPageEvents,
+			gitlab.WikiPageEvents,
 			//gitlab.BuildEvents,
 		)
 		if err != nil {
