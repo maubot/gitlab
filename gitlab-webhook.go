@@ -243,7 +243,7 @@ func handleCommentEvent(payload interface{}, room mautrix.Room) {
 	}
 
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (%[8]c%[7]d)",
+		"[%[1]s/%[2]s] %[3]s <a href='%[5]s'>commented</a> on %[4]s %[6]s (%[8]c%[7]d): %[9]s",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
@@ -251,7 +251,8 @@ func handleCommentEvent(payload interface{}, room mautrix.Room) {
 		data.ObjectAttributes.URL,
 		title,
 		id,
-		notebookIdentifier)
+		notebookIdentifier,
+		data.ObjectAttributes.Note)
 }
 
 func handlePipelineEvent(payload interface{}, room mautrix.Room) {
