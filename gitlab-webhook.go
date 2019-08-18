@@ -188,11 +188,11 @@ func handleIssueEvent(payload interface{}, room mautrix.Room) {
 	action := data.ObjectAttributes.Action
 	if action == "update" || len(action) == 0 {
 		return
-	} else if !strings.HasSuffix(action, "e") {
-		action += "e"
+	} else if !strings.HasSuffix(action, "ed") {
+		action += "ed"
 	}
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd %[5]sissue <a href='%[6]s'>%[7]s (#%[8]d)</a>",
+		"[%[1]s/%[2]s] %[3]s %[4]s %[5]sissue <a href='%[6]s'>%[7]s (#%[8]d)</a>",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
@@ -209,11 +209,11 @@ func handleMergeRequestEvent(payload interface{}, room mautrix.Room) {
 	action := data.ObjectAttributes.Action
 	if action == "update" {
 		return
-	} else if !strings.HasSuffix(action, "e") {
-		action += "e"
+	} else if !strings.HasSuffix(action, "ed") {
+		action += "ed"
 	}
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd merge request <a href='%[5]s'>%[6]s (!%[7]d)</a>",
+		"[%[1]s/%[2]s] %[3]s %[4]s merge request <a href='%[5]s'>%[6]s (!%[7]d)</a>",
 		data.ObjectAttributes.Target.Namespace,
 		data.ObjectAttributes.Target.Name,
 		data.User.Name,
@@ -291,11 +291,11 @@ func handleWikiPageEvent(payload interface{}, room mautrix.Room) {
 
 	action := data.ObjectAttributes.Action
 
-	if !strings.HasSuffix(action, "e") {
-		action += "e"
+	if !strings.HasSuffix(action, "ed") {
+		action += "ed"
 	}
 	room.SendfHTML(
-		"[%[1]s/%[2]s] %[3]s %[4]sd page on wiki <a href='%[5]s'>%[6]s (#%[7]d)</a>",
+		"[%[1]s/%[2]s] %[3]s %[4]s page on wiki <a href='%[5]s'>%[6]s (#%[7]d)</a>",
 		data.Project.Namespace,
 		data.Project.Name,
 		data.User.Name,
