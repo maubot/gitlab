@@ -1,14 +1,12 @@
-from typing import Type
+import asyncio
+
+from typing import List, Type
 
 from aiohttp import web
 
-from mautrix.types import EventType
-
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
-from maubot import Plugin, MessageEvent
-
-from maubot.handlers import event
+from maubot import Plugin
 
 
 class Config(BaseProxyConfig):
@@ -23,35 +21,38 @@ class Gitlab(Plugin):
 
     routes = web.RouteTableDef()
 
-    async def post_handler(self, request):
-        if not request.headers['X-Gitlab-Token'] == self.config['secret']:
-            self.log.warn('unauthorised access')
-            return web.Response()
+    async def process_hook(self, request: web.Request) -> None:
         self.log.debug(str(request))
         self.log.debug(str(request.query['room']))
         await self.client.send_text(request.query['room'], str(request))
+
+    async def post_handler(self, request: web.Request) -> web.Response:
+        if not request.headers['X-Gitlab-Token'] == self.config['secret']:
+            return web.Response(status=403)
+
+        self.task_list.append(asyncio.create_task(self.process_hook(request)))
+
         return web.Response()
 
     async def start(self) -> None:
         self.config.load_and_update()
+
+        self.task_list: List[asyncio.Task] = []
 
         self.app = web.Application()
         self.app.add_routes([web.post(self.config['path'], self.post_handler)])
 
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        await self.runner.setup()
-        site = web.TCPSite(self.runner, '0.0.0.0', self.config['port'])
-        await site.start()
+        self.sitev4 = web.TCPSite(self.runner, '0.0.0.0', self.config['port'])
+        self.sitev6 = web.TCPSite(self.runner, '::', self.config['port'])
+        await self.sitev4.start()
+        await self.sitev6.start()
 
     async def stop(self) -> None:
+        for task in self.task_list:
+            await asyncio.wait_for(task, timeout=1.0)
         await self.runner.cleanup()
-
-    @event.on(EventType.ROOM_MESSAGE)
-    async def handler(self, event: MessageEvent) -> None:
-        if event.sender != self.client.mxid:
-            for ii in ['path', 'port', 'secret', 'base_command']:
-                await self.client.send_text(event.room_id, str(self.config[ii]))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
