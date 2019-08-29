@@ -1,0 +1,4 @@
+path: "/webhooks"
+port: 29313
+secret: "passwd"
+base_command: "gitlab"
