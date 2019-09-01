@@ -6,7 +6,8 @@ from aiohttp import web
 
 from maubot.handlers import event
 
-from mautrix.types import (EventType, EventID, MessageType, TextMessageEventContent, Format)
+from mautrix.types import (EventType, EventID, MessageType,
+                           TextMessageEventContent, Format)
 
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
@@ -14,75 +15,18 @@ from maubot import Plugin, MessageEvent
 
 from maubot.matrix import parse_markdown
 
-
-def handlePushEvent(body) -> str:
-    branch = body['ref'].replace('refs/heads/', '')
-
-    if int(body['total_commits_count']) == 0:
-        msg = "\[{2!s}/{3!s}\] {4!s} force pushed to" \
-                   "or deleted branch [{1!s}]({0!s}/tree/{1!s})"
-        return msg.format(body['project']['web_url'],
-                          branch,
-                          body['project']['namespace'],
-                          body['project']['name'],
-                          body['user_username']
-                          )
-
-    pluralizer: str = ''
-    if int(body['total_commits_count']) != 1:
-        pluralizer = 's'
-
-    msg = "\[[{2!s}/{3!s}]({0!s}/tree/{1!s})\] " \
-          "{4:d} new commit{6!s} by {5!s}\n\n"
-    msg = msg.format(body['project']['web_url'],
-                     branch,
-                     body['project']['namespace'],
-                     body['project']['name'],
-                     body['total_commits_count'],
-                     body['user_username'],
-                     pluralizer
-                     )
-
-    for commit in reversed(body['commits']):
-        lines = commit['message'].split('\n')
-        if len(lines) > 1 and len(''.join(lines[1:])) > 0:
-            lines[0] += " (...)"
-        msg += "+ {0!s} ({1!s})\n".format(lines[0], commit['id'][:8])
-
-    return msg
+from .gitlab_hook import (GitlabPushEvent, GitlabTagEvent, GitlabIssueEvent,
+                          GitlabNoteEvent, GitlabMergeRequestEvent,
+                          GitlabWikiPageEvent, GitlabPipelineEvent)
 
 
-def handleTagEvent(body):
-    pass
-
-
-def handleIssueEvent(body):
-    pass
-
-
-def handleNoteEvent(body):
-    pass
-
-
-def handleMergeRequestEvent(body):
-    pass
-
-
-def handleWikiPageEvent(body):
-    pass
-
-
-def handlePipelineEvent(body):
-    pass
-
-
-EventParse = {'Push Hook': handlePushEvent,
-              'Tag Push Hook': handleTagEvent,
-              'Issue Hook': handleIssueEvent,
-              'Note Hook': handleNoteEvent,
-              'Merge Request Hook': handleMergeRequestEvent,
-              'Wiki Page Hook': handleWikiPageEvent,
-              'Pipeline Hook': handlePipelineEvent
+EventParse = {'Push Hook': GitlabPushEvent,
+              'Tag Push Hook': GitlabTagEvent,
+              'Issue Hook': GitlabIssueEvent,
+              'Note Hook': GitlabNoteEvent,
+              'Merge Request Hook': GitlabMergeRequestEvent,
+              'Wiki Page Hook': GitlabWikiPageEvent,
+              'Pipeline Hook': GitlabPipelineEvent
               }
 
 
@@ -128,16 +72,16 @@ class Gitlab(Plugin):
             self.log.debug('missing X-Gitlab-Event Header')
             return None
 
-        GitlabEvent = req.headers['X-Gitlab-Event']
+        GitlabEvent = EventParse[req.headers['X-Gitlab-Event']](body)
 
-        msg = EventParse[GitlabEvent](body)
+        msg = GitlabEvent.handle()
 
         await self.send_gitlab_event(req.query['room'], msg)
 
     async def post_handler(self, request: web.Request) -> web.Response:
         # check the authorisation of the request
         if 'X-Gitlab-Token' not in request.headers \
-                or not request.headers['X-Gitlab-Token'] == self.config['secret']:
+                or not request.headers['X-Gitlab-Token'] == self.config['secret']:  # noqa: E501
             resp_text = '403 FORBIDDEN'
             return web.Response(text=resp_text,
                                 status=403
