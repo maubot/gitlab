@@ -31,7 +31,7 @@ extra_files:
 
 # List of dependencies
 #dependencies:
-#- foo
+#-
 
 #soft_dependencies:
 #- bar>=0.1
