@@ -21,7 +21,7 @@ modules:
 # If `module` is omitted, will default to last module specified in the module list.
 # Even if `module` is not omitted here, it must be included in the modules list.
 # The main class must extend maubot.Plugin
-main_class: gitlab/Gitlab
+main_class: Gitlab
 
 #  Extra files that the upcoming build tool should include in the mbp file.
 
