@@ -1,5 +1,3 @@
-from types import List
-
 
 class GitlabPushEvent:
 
@@ -68,7 +66,6 @@ class GitlabTagEvent:
         self.checkout_sha = body['checkout_sha']
         self.user_id = body['user_id']
         self.user_name = body['user_name']
-        self.user_email = body['user_email']
         self.user_avatar = body['user_avatar']
         self.project_id = body['project_id']
         self.project = GitlabProject(body['project'])
@@ -87,7 +84,190 @@ class GitlabIssueEvent:
         self.repository = GitlabRepository(body['repository'])
         self.object_attributes = GitlabObjectAttributes(body['object_attributes'])  # noqa: E501
         self.assignees = [GitlabAssignee(assignee) for assignee in body['assignees']]  # noqa: E501
-        self.changes = [GitlabChange(change) for change in body['changes']]
+        self.labels = [GitlabLabel(label) for label in body['label']]
+        self.changes = [GitlabChange(name, change) for name, change in body['changes']]  # noqa: E501
+
+
+class GitlabCommentEvent:
+
+    def __init__(self, body: dict):
+
+        self.object_kind = body['object_kind']
+        self.user = GitlabUser(body['user'])
+        self.project_id: int = int(body['project_id'])
+        self.project = GitlabProject(body['project'])
+        self.repository = GitlabRepository(body['repository'])
+        self.object_attributes = GitlabObjectAttributes(body['object_attributes'])  # noqa: E501
+        if 'merge_request' in body:
+            self.merge_request = GitlabMergeRequest(body['merge_request'])
+        if 'commit' in body:
+            self.commit = GitlabCommit(body['commit'])
+        if 'issue' in body:
+            self.issue = GitlabIssue(body['issue'])
+        if 'snippet' in body:
+            self.snippet = GitlabSnippet(body['snippet'])
+
+
+class GitlabMergeRequestEvent:
+
+    def __init__(self, body: dict):
+
+        self.object_kind = body['object_kind']
+        self.user = GitlabUser(body['user'])
+        self.project = GitlabProject(body['project'])
+        self.repository = GitlabRepository(body['repository'])
+        self.object_attributes = GitlabObjectAttributes(body['object_attributes'])  # noqa: E501
+        self.labels = [GitlabLabel(label) for label in body['labels']]
+        self.changes = [GitlabChange(name, change) for name, change in body['changes']]  # noqa: E501
+
+
+class GitlabWikiPageEvent:
+
+    def __init__(self, body: dict):
+
+        self.object_kind = body['object_kind']
+        self.user = GitlabUser(body['user'])
+        self.project = GitlabProject(body['project'])
+        self.wiki = GitlabWiki(body['wiki'])
+        self.object_attributes = GitlabObjectAttributes(body['object_attributes'])  # noqa: E501
+
+
+class GitlabPipelineEvent:
+
+    def __init__(self, body: dict):
+
+        self.object_kind = body['pipeline']
+        self.object_attributes = GitlabObjectAttributes(body['object_attributes'])  # noqa: E501
+        self.user = GitlabUser(body['user'])
+        self.project = GitlabProject(body['project'])
+        self.commit = GitlabCommit(body['commit'])
+        self.builds = [GitlabBuild(build) for build in body['builds']]
+
+
+class GitlabJobEvent:
+
+    def __init__(self, body: dict):
+
+        self.object_kind = body['object_kind']
+        self.ref = body['ref']
+        self.tag = body['tag']
+        self.before_sha = body['before_sha']
+        self.sha = body['sha']
+        self.job_id: int = int(body['job_id'])
+        self.job_name = body['job_name']
+        self.job_stage = body['job_stage']
+        self.job_status = body['job_status']
+        self.job_started_at = body['job_started_at']
+        self.job_finished_at = body['job_finished_at']
+        self.job_duration = body['job_duration']
+        self.job_allow_failure = body['job_allow_failure']
+        self.job_failure_reason = body['job_failure_reason']
+        self.project_id: int = int(body['project_id'])
+        self.project_name = body['project_name']
+        self.user = GitlabUser(body['user'])
+        self.commit = GitlabCommit(body['commit'])
+        self.repository = GitlabRepository(body['repository'])
+
+
+class GitlabBuild:
+
+    def __init__(self, build: dict):
+
+        self.id: int = int(build['id'])
+        self.stage = build['stage']
+        self.name = build['name']
+        self.status = build['status']
+        self.created_at = build['created_at']
+        self.started_at = build['started_at']
+        self.finished_at = build['finished_at']
+        self.when = build['when']
+        self.manual = build['manual']
+        self.user = GitlabUser(build['user'])
+        self.runner = build['runner']
+        self.artifacts_file = GitlabArtifact(build['artifacts_file'])
+
+
+class GitlabArtifact:
+
+    def __init__(self, artifact: dict):
+
+        self.file_name = artifact['filename']
+        self.size = artifact['size']
+
+
+class GitlabWiki:
+
+    def __init__(self, wiki: dict):
+
+        self.web_url = wiki['web_url']
+        self.git_ssh_url = wiki['git_ssh_url']
+        self.git_http_url = wiki['git_http_url']
+        self.path_with_namespace = wiki['path_with_namespace']
+        self.default_branch = wiki['default_branch']
+
+
+class GitlabMergeRequest:
+
+    def __init__(self, mreq: dict):
+
+        self.id: int = int(mreq['id'])
+        self.target_branch = mreq['target_branch']
+        self.source_branch = mreq['source_branch']
+        self.source_project_id: int = int(mreq['source_project_id'])
+        self.assignee_id: int = int(mreq['assignee_id'])
+        self.author_id: int = int(mreq['author_id'])
+        self.title = mreq['title']
+        self.created_at = mreq['created_at']
+        self.updated_at = mreq['updated_at']
+        self.milestone_id: int = int(mreq['milestone_id'])
+        self.state = mreq['state']
+        self.merge_status = mreq['merge_status']
+        self.target_project_id: int = int(mreq['target_project_id'])
+        self.iid: int = int(mreq['iid'])
+        self.description = mreq['description']
+        self.position: int = int(mreq['position'])
+        self.locked_at = mreq['locked_at']
+        self.source = GitlabSource(mreq['source'])
+        self.target = GitlabTarget(mreq['target'])
+        self.last_commit = GitlabCommit(mreq['last_commit'])
+        self.work_in_progress = mreq['work_in_progress']
+        self.assignee = GitlabAssignee(mreq['assignee'])
+
+
+class GitlabIssue:
+
+    def __init__(self, issue: dict):
+
+        self.id: int = int(issue['id'])
+        self.title = issue['title']
+        self.assignee_id: int = int(issue['assignee_id'])
+        self.author_id: int = int(issue['author_id'])
+        self.project_id: int = int(issue['project_id'])
+        self.created_at = issue['created_at']
+        self.updated_at = issue['updated_at']
+        self.position: int = issue['position']
+        self.branch_name = issue['branch_name']
+        self.description = issue['description']
+        self.milestone_id: int = int(issue['milestone_id'])
+        self.state = issue['state']
+        self.iid. int = int(issue['iid'])
+
+
+class GitlabSnippet:
+
+    def __init__(self, snippet: dict):
+
+        self.id: int = int(snippet['id'])
+        self.title = snippet['title']
+        self.content = snippet['content']
+        self.author_id: int = int(snippet['author_id'])
+        self.project_id: int = int(snippet['project_id'])
+        self.created_at = snippet['created_at']
+        self.updated_at = snippet['updated_at']
+        self.file_name = snippet['file_name']
+        self.expires_at = snippet['expires_at']
+        self.type = snippet['type']
+        self.visibility_level: int = int(snippet['visibility_level'])
 
 
 class GitlabUser:
@@ -103,51 +283,65 @@ class GitlabObjectAttributes:
 
     def __init__(self, obj: dict):
 
-        self.id: int = int(obj['id'])
-        self.title = obj['title']
-        self.assignee_ids: List[int] = [int(assignee_id) for assignee_id in obj['assignee_ids']]  # noqa: E501
-        self.author_id: int = int(obj['author_id'])
-        self.project_id: int = int(obj['project_id'])
-        self.created_at = obj['created_at']
-        self.updated_at = obj['updated_at']
-        self.position: int = int(obj['position']) or 0
-        self.branch_name = obj['branch_name'] or None
-        self.description = obj['description']
-        self.milestone_id: int = int(obj['milestone_id'])
-        self.state = obj['state']
-        self.iid: int = int(obj['iid'])
-        self.url = obj['url']
-        self.action = obj['action'] or None
-        self.target_branch = obj['target_branch'] or None
-        self.source_branch = obj['source_branch'] or None
-        self.source_project_id: int = int(obj['source_project_id']) or None
-        self.target_project_id: int = int(obj['target_project_id']) or None
-        self.st_commits = obj['st_commits'] or None
-        self.merge_status = obj['merge_status'] or None
-        self.content = obj['content'] or None
-        self.format = obj['format'] or None
-        self.message = obj['message'] or None
-        self.slug = obj['slug'] or None
-        self.ref = obj['ref'] or None
-        self.tag = obj['tag'] or None
-        self.sha = obj['sha'] or None
-        self.before_sha = obj['before_sha'] or None
-        self.status = obj['status'] or None
-        self.stages = obj['stages'] or None
-        self.duration: int = int(obj['duration']) or 0
-        self.note = obj['note'] or None
-        self.noteable_type = obj['noteable_type'] or None
-        self.attachment = obj['attachment'] or None
-        self.line_code = obj['line_code'] or None
-        self.commit_id = obj['commit_id'] or None
-        self.noteable_id: int = int(obj['noteable_id']) or 0
-        self.system = obj['system'] or None
-        self.work_in_progress = obj['work_in_progress'] or None
-        self.st_diffs = [GitlabStDiff(st_diff) for st_diff in obj['st_diffs']]
-        self.source = GitlabSource(obj['source'] or None)
-        self.target = GitlabTarget(obj['target'] or None)
-        self.last_commit = GitlabLastCommit(obj['last_commit'] or None)
-        self.assignee = GitlabAssignee(obj['assignee'] or None)
+        if 'note' in obj:
+            self.id: int = int(obj['id'])
+            self.author_id: int = int(obj['author_id'])
+            self.created_at = obj['created_at']
+            self.updated_at = obj['updated_at']
+            self.url = obj['url']
+            self.note = obj['note'] or None
+            self.noteable_type = obj['noteable_type'] or None
+            self.project_id: int = int(obj['project_id'])
+            self.attachment = obj['attachment'] or None
+            self.line_code = obj['line_code'] or None
+            self.commit_id = obj['commit_id'] or None
+            self.noteable_id: int = int(obj['noteable_id']) or 0
+            self.system = obj['system'] or None
+            self.st_diff = GitlabStDiff(obj['st_diff'])
+        elif 'slug' in obj:
+            self.title = obj['title']
+            self.content = obj['content']
+            self.format = obj['markdown']
+            self.message = obj['message']
+            self.slug = obj['slug']
+            self.url = obj['url']
+            self.action = obj['action']
+        elif 'merge_status' in obj:
+            # TODO: maybe possible to merge with GitlabMergeRequest
+            self.id: int = int(obj['id'])
+            self.author_id: int = int(obj['author_id'])
+            self.created_at = obj['created_at']
+            self.updated_at = obj['updated_at']
+            self.url = obj['url']
+            self.target_branch = obj['target_branch']
+            self.source_branch = obj['source_branch']
+            self.source_project_id: int = int(obj['source_project_id'])
+            self.assignee_id: int = int(obj['assignee_id'])
+            self.title = obj['title']
+            self.milestone_id: int = int(obj['milestone_id'])
+            self.state = obj['state']
+            self.merge_status = obj['merge_status']
+            self.target_project_id: int = int(obj['target_project_id'])
+            self.iid: int = obj['iid']
+            self.description = obj['description']
+            self.source = GitlabSource(obj['source'])
+            self.target = GitlabTarget(obj['target'])
+            self.last_commit = GitlabCommit(obj['last_commit'])
+            self.work_in_progress = obj['work_in_progress']
+            self.action = obj['action']
+            self.assignee = GitlabAssignee(obj['assignee'])
+        elif 'stages' in obj:
+            self.id: int = int(obj['int'])
+            self.ref = obj['ref']
+            self.tag = obj['tag']
+            self.sha = obj['sha']
+            self.before_sha = obj['before_sha']
+            self.status = obj['status']
+            self.stages = obj['stages']
+            self.created_at = obj['created_at']
+            self.finished_at = obj['finished_at']
+            self.duration: int = int(obj['duration'])
+            self.variables = obj['variables']
 
 
 class GitlabStDiff:
@@ -204,22 +398,18 @@ class GitlabTarget:
         self.http_url = source['http_url']
 
 
-class GitlabLastCommit:
-
-    def __init__(self, commit: dict):
-
-        self.id = commit['id']
-        self.message = commit['message']
-        self.timestamp = commit['timestamp']
-        self.url = commit['url']
-        self.author = GitlabAuthor(commit['author'])
-
-
 class GitlabChange:
 
-    def __init__(self, change: dict):
+    def __init__(self, name: str, change: dict):
 
-        self.labels = GitlabLabelChanges(change['labels'])
+        self.name = name
+
+        if name == 'labels':
+            self.previous = [GitlabLabel(label) for label in change['previous']]  # noqa: E501
+            self.current = [GitlabLabel(label) for label in change['current']]
+        else:
+            self.previous = change['previous']
+            self.current = change['current']
 
 
 class GitlabLabelChanges:
@@ -303,3 +493,17 @@ class GitlabRepository:
         self.url = repo['url']
         self.description = repo['description']
         self.homepage = repo['homepage']
+        self.git_http_url = repo['git_http_url']
+        self.git_ssh_url = repo['git_ssh_url']
+        self.visibility_level: int = int(repo['visibility_level'])
+
+
+EventParse = {'Push Hook': GitlabPushEvent,
+              'Tag Push Hook': GitlabTagEvent,
+              'Issue Hook': GitlabIssueEvent,
+              'Note Hook': GitlabCommentEvent,
+              'Merge Request Hook': GitlabMergeRequestEvent,
+              'Wiki Page Hook': GitlabWikiPageEvent,
+              'Pipeline Hook': GitlabPipelineEvent,
+              'Job Hook': GitlabJobEvent
+              }

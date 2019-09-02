@@ -15,19 +15,7 @@ from maubot import Plugin, MessageEvent
 
 from maubot.matrix import parse_markdown
 
-from .gitlab_hook import (GitlabPushEvent, GitlabTagEvent, GitlabIssueEvent,
-                          GitlabNoteEvent, GitlabMergeRequestEvent,
-                          GitlabWikiPageEvent, GitlabPipelineEvent)
-
-
-EventParse = {'Push Hook': GitlabPushEvent,
-              'Tag Push Hook': GitlabTagEvent,
-              'Issue Hook': GitlabIssueEvent,
-              'Note Hook': GitlabNoteEvent,
-              'Merge Request Hook': GitlabMergeRequestEvent,
-              'Wiki Page Hook': GitlabWikiPageEvent,
-              'Pipeline Hook': GitlabPipelineEvent
-              }
+from .gitlab_hook import EventParse
 
 
 class Config(BaseProxyConfig):
