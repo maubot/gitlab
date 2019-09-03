@@ -108,14 +108,14 @@ class GitlabIssueEvent:
         action = self.object_attributes.action
         if action == 'update' or len(action) == 0:
             return None
-        elif not action[-1] == 'e':
-            action += 'e'
+        elif not action[-2:-1] == 'ed':
+            action += 'ed'
 
         confidential = ''
         if self.object_attributes.confidential:
             confidential = 'confidential '
 
-        msg = '\[{0!s}/{1!s}\] {2!s} {3!s}d {4!s}issue [{6!s} (#{7:d})]({5!s})'  # noqa: W605 E501
+        msg = '\[{0!s}/{1!s}\] {2!s} {3!s} {4!s}issue [{6!s} (#{7:d})]({5!s})'  # noqa: W605 E501
         return msg.format(self.project.namespace,
                           self.project.name,
                           self.user.name,
@@ -192,10 +192,10 @@ class GitlabMergeRequestEvent:
 
         if action == 'update':
             return None
-        elif not action[-1] == 'e':
-            action += 'e'
+        elif not action[-2:-1] == 'ed':
+            action += 'ed'
 
-        msg = '\[{0!s}/{1!s}\] {2!s} {3!s}d merge request [{5!s} (!{6:d})]({4!s})'  # noqa W605 E501
+        msg = '\[{0!s}/{1!s}\] {2!s} {3!s} merge request [{5!s} (!{6:d})]({4!s})'  # noqa W605 E501
         return msg.format(self.object_attributes.target.namespace,
                           self.object_attributes.target.name,
                           self.user.name,
@@ -220,8 +220,8 @@ class GitlabWikiPageEvent:
 
         action = self.object_attributes.action
 
-        if not action[-1] == 'e':
-            action += 'e'
+        if not action[-2:-1] == 'ed':
+            action += 'ed'
 
         msg = '\[{0!s}/{1!s}\] {2!s} {3!s}d page on wiki [{5!s} (#{6:d})]({5!s})'  # noqa W605 E501
         return msg.format(self.project.namespace,
