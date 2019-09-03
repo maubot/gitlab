@@ -22,8 +22,8 @@ class GitlabPushEvent:
         branch = self.ref.replace('refs/heads/', '')
 
         if self.total_commits_count == 0:
-            msg = "\[{2!s}/{3!s}\] {4!s} force pushed to" \
-                    "or deleted branch [{1!s}]({0!s}/tree/{1!s})"  # noqa: W605
+            msg = ("\[{2!s}/{3!s}\] {4!s} force pushed to "  # noqa: W605
+                   "or deleted branch [{1!s}]({0!s}/tree/{1!s})")
             return msg.format(self.project.web_url,
                               branch,
                               self.project.namespace,
@@ -35,8 +35,8 @@ class GitlabPushEvent:
         if self.total_commits_count != 1:
             pluralizer = 's'
 
-        msg = "\[[{2!s}/{3!s}]({0!s}/tree/{1!s})\] " \
-                "{4:d} new commit{6!s} by {5!s}\n\n"  # noqa: W605
+        msg = ("\[[{2!s}/{3!s}]({0!s}/tree/{1!s})\] "  # noqa: W605
+               "{4:d} new commit{6!s} by {5!s}\n\n")
         msg = msg.format(self.project.web_url,
                          branch,
                          self.project.namespace,
@@ -80,7 +80,8 @@ class GitlabTagEvent:
 
         tag = self.ref.replace('refs/tags', '')
 
-        msg = "\[{0!s}/{1!s}\] {2!s} created tag [{4!s}]({3!s}/tags/{4!s})"  # noqa: W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2!s} created tag "  # noqa: W605
+               "[{4!s}]({3!s}/tags/{4!s})")
         return msg.format(self.project.namespace,
                           self.project.name,
                           self.user_name,
@@ -115,7 +116,8 @@ class GitlabIssueEvent:
         if self.object_attributes.confidential:
             confidential = 'confidential '
 
-        msg = '\[{0!s}/{1!s}\] {2!s} {3!s} {4!s}issue [{6!s} (#{7:d})]({5!s})'  # noqa: W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2!s} {3!s} {4!s}issue "  # noqa: W605
+               "[{6!s} (#{7:d})]({5!s})")
         return msg.format(self.project.namespace,
                           self.project.name,
                           self.user.name,
@@ -161,7 +163,8 @@ class GitlabCommentEvent:
         else:
             return None
 
-        msg = '\[{0!s}/{1!s}\] {2!s} [commented]({4!s}) on {3!s} {5!s} ({7!s}{6:d}):\n\n{8!s}'  # noqa: W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2!s} [commented]({4!s}) on "  # noqa: W605
+               "{3!s} {5!s} ({7!s}{6:d}):\n\n{8!s}")
         return msg.format(self.project.namespace,
                           self.project.name,
                           self.user.name,
@@ -195,7 +198,8 @@ class GitlabMergeRequestEvent:
         elif not action[-2:-1] == 'ed':
             action += 'ed'
 
-        msg = '\[{0!s}/{1!s}\] {2!s} {3!s} merge request [{5!s} (!{6:d})]({4!s})'  # noqa W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2!s} {3!s} merge request "  # noqa W605
+               "[{5!s} (!{6:d})]({4!s})")
         return msg.format(self.object_attributes.target.namespace,
                           self.object_attributes.target.name,
                           self.user.name,
@@ -223,7 +227,8 @@ class GitlabWikiPageEvent:
         if not action[-2:-1] == 'ed':
             action += 'ed'
 
-        msg = '\[{0!s}/{1!s}\] {2!s} {3!s}d page on wiki [{5!s} (#{6:d})]({5!s})'  # noqa W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2!s} {3!s}d page on wiki "  # noqa W605
+               "[{5!s} (#{6:d})]({5!s})")
         return msg.format(self.project.namespace,
                           self.project.name,
                           self.user.name,
@@ -253,7 +258,8 @@ class GitlabPipelineEvent:
 
         duration = self.object_attributes.duration
 
-        msg = '\[{0!s}/{1!s}\] {2} pipeline{3!s} complete in {4!s}\n\n'  # noqa: W605 E501
+        msg = ("\[{0!s}/{1!s}\] {2} pipeline{3!s} "  # noqa: W605
+               "completed in {4!s}\n\n")
         msg = msg.format(self.project.namespace,
                          self.project.name,
                          len(self.builds),
@@ -262,7 +268,7 @@ class GitlabPipelineEvent:
                          )
 
         for build in self.builds:
-            msg += '+ [{2!s}:{3!s} ({1})]({0!s}/-/jobs/{1}) {4!s}\n'
+            msg += "+ [{2!s}:{3!s} ({1})]({0!s}/-/jobs/{1}) {4!s}\n"
             msg = msg.format(self.project.web_url,
                              build.id,
                              build.name,
@@ -302,7 +308,8 @@ class GitlabJobEvent:
         namespace = self.project_name.replace(' ', '').split('/')[1]
         name = self.project_name.replace(' ', '').split('/')[2]
 
-        msg = '\[{0!s}/{1!s}\] job [{2!s}:{3!s} ({4})]({5!s}/-/jobs/{4}) {6!s}'  # noqa: W605 E501
+        msg = ("\[{0!s}/{1!s}\] job "  # noqa: W605
+               "[{2!s}:{3!s} ({4})]({5!s}/-/jobs/{4}) {6!s}")
         return msg.format(namespace,
                           name,
                           self.build_name,
