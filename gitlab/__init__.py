@@ -1,5 +1,7 @@
 import asyncio
 
+from asyncio import Task
+
 from typing import List, Type, Awaitable
 
 from aiohttp import web
@@ -64,7 +66,10 @@ class Gitlab(Plugin):
 
         msg = GitlabEvent.handle()
 
-        await self.send_gitlab_event(req.query['room'], msg)
+        if msg:
+            await self.send_gitlab_event(req.query['room'], msg)
+
+        self.task_list.remove(asyncio.current_task())
 
     async def post_handler(self, request: web.Request) -> web.Response:
         # check the authorisation of the request
@@ -101,7 +106,6 @@ class Gitlab(Plugin):
 
         task = self.loop.create_task(self.process_hook(request))
         self.task_list += [task]
-        await task
 
         return web.Response(status=202)
 
@@ -110,7 +114,7 @@ class Gitlab(Plugin):
 
         self.joined_rooms = await self.client.get_joined_rooms()
 
-        self.task_list: List[asyncio.Task] = []
+        self.task_list: List[Task] = []
 
         self.app = web.Application()
         self.app.add_routes([web.post(self.config['path'], self.post_handler)])
