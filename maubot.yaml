@@ -35,3 +35,5 @@ extra_files:
 
 #soft_dependencies:
 #- bar>=0.1
+
+webapp: true

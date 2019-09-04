@@ -4,9 +4,9 @@ from asyncio import Task
 
 from typing import List, Type, Awaitable
 
-from aiohttp import web
+from aiohttp.web import Response, Request
 
-from maubot.handlers import event
+from maubot.handlers import event, web
 
 from mautrix.types import (EventType, EventID, MessageType,
                            TextMessageEventContent, Format)
@@ -31,8 +31,6 @@ class Config(BaseProxyConfig):
 
 class Gitlab(Plugin):
 
-    routes = web.RouteTableDef()
-
     def send_gitlab_event(self, room: str, msg: str) -> Awaitable[EventID]:
         if self.config['send_as_notice']:
             msgtype = MessageType.NOTICE
@@ -51,7 +49,7 @@ class Gitlab(Plugin):
                                               content
                                               )
 
-    async def process_hook(self, req: web.Request) -> None:
+    async def process_hook(self, req: Request) -> None:
         if not req.has_body:
             self.log.debug('no body')
             return
@@ -71,65 +69,57 @@ class Gitlab(Plugin):
 
         self.task_list.remove(asyncio.current_task())
 
-    async def post_handler(self, request: web.Request) -> web.Response:
+    @web.post('/webhooks')
+    async def post_handler(self, request: Request) -> Response:
         # check the authorisation of the request
         if 'X-Gitlab-Token' not in request.headers \
                 or not request.headers['X-Gitlab-Token'] == self.config['secret']:  # noqa: E501
             resp_text = '403 FORBIDDEN'
-            return web.Response(text=resp_text,
-                                status=403
-                                )
+            return Response(text=resp_text,
+                            status=403
+                            )
 
         # check if a roomid was specified
         if 'room' not in request.query:
             resp_text = 'No room specified. ' \
                         'Use example.com' + self.config['path'] + \
                         '?room=!<roomid>.'
-            return web.Response(text=resp_text,
-                                status=400
-                                )
+            return Response(text=resp_text,
+                            status=400
+                            )
 
         # check if the bot is in the specified room
         if request.query['room'] not in self.joined_rooms:
             resp_text = 'The Bot is not in the room.'
-            return web.Response(text=resp_text,
-                                status=403
-                                )
+            return Response(text=resp_text,
+                            status=403
+                            )
 
         # check if we can read the content of the request
         if 'Content-Type' not in request.headers \
                 or not request.headers['Content-Type'] == 'application/json':
             self.log.debug(request.headers['Content-Type'])
-            return web.Response(status=406,
-                                headers={'Content-Type': 'application/json'}
-                                )
+            return Response(status=406,
+                            headers={'Content-Type': 'application/json'}
+                            )
 
         task = self.loop.create_task(self.process_hook(request))
         self.task_list += [task]
 
-        return web.Response(status=202)
+        return Response(status=202)
 
     async def start(self) -> None:
+        await super().start()
         self.config.load_and_update()
 
         self.joined_rooms = await self.client.get_joined_rooms()
 
         self.task_list: List[Task] = []
 
-        self.app = web.Application()
-        self.app.add_routes([web.post(self.config['path'], self.post_handler)])
-
-        self.runner = web.AppRunner(self.app)
-        await self.runner.setup()
-        self.sitev4 = web.TCPSite(self.runner, '0.0.0.0', self.config['port'])
-        self.sitev6 = web.TCPSite(self.runner, '::', self.config['port'])
-        await self.sitev4.start()
-        await self.sitev6.start()
-
     async def stop(self) -> None:
         for task in self.task_list:
             await asyncio.wait_for(task, timeout=1.0)
-        await self.runner.cleanup()
+        # await self.runner.cleanup()
 
     @event.on(EventType.ROOM_MEMBER)
     async def member_handler(self, evt: MessageEvent) -> None:
