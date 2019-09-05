@@ -1,2 +1,4 @@
 tokens.json
 config.json
+
+.mypy_cache/
