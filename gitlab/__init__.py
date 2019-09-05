@@ -1,5 +1,7 @@
 import asyncio
 
+import traceback
+
 from asyncio import Task
 
 from typing import List, Type, Awaitable
@@ -60,14 +62,22 @@ class Gitlab(Plugin):
             self.log.debug('missing X-Gitlab-Event Header')
             return None
 
-        GitlabEvent = EventParse[req.headers['X-Gitlab-Event']](body)
+        try:
+            GitlabEvent = EventParse[req.headers['X-Gitlab-Event']].deserialize(body)  # noqa: E501
 
-        msg = GitlabEvent.handle()
+            msg = GitlabEvent.handle()
+        except Exception as e:
+            self.log.debug(traceback.format_exc())
+            self.log.debug(e)
+            msg = ''
 
         if msg:
             await self.send_gitlab_event(req.query['room'], msg)
 
-        self.task_list.remove(asyncio.current_task())
+        # make the typechecker happy
+        task = asyncio.current_task()
+        if task:
+            self.task_list.remove(task)
 
     @web.post('/webhooks')
     async def post_handler(self, request: Request) -> Response:
