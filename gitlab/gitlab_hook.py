@@ -173,8 +173,8 @@ class GitlabTarget(SerializableAttrs['GitlabTarget']):
 @dataclass
 class GitlabChange(SerializableAttrs['GitlabChange']):
 
-    previous: Union[GitlabLabel, str, int]
-    current: Union[GitlabLabel, str, int]
+    previous: Union[List[GitlabLabel], List[GitlabAssignee], str, int]
+    current: Union[List[GitlabLabel], List[GitlabAssignee], str, int]
 
 
 @dataclass
