@@ -1,7 +1,5 @@
 import asyncio
 
-import traceback
-
 from asyncio import Task
 
 from typing import List, Type, Awaitable
@@ -67,7 +65,7 @@ class Gitlab(Plugin):
 
             msg = GitlabEvent.handle()
         except Exception as e:
-            self.log.debug(traceback.format_exc())
+            self.log.info("Failed to handle Gitlab event", exc_info=True)
             self.log.debug(e)
             msg = ''
 
