@@ -9,7 +9,8 @@ from aiohttp.web import Response, Request
 from maubot.handlers import event, web
 
 from mautrix.types import (EventType, EventID, MessageType,
-                           TextMessageEventContent, Format)
+                           TextMessageEventContent, Format,
+                           Membership)
 
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
@@ -131,7 +132,14 @@ class Gitlab(Plugin):
 
     @event.on(EventType.ROOM_MEMBER)
     async def member_handler(self, evt: MessageEvent) -> None:
-        pass
+        if (evt.content.membership == Membership.LEAVE
+                and evt.state_key == self.client.mxid):
+            self.joined_rooms = await self.client.get_joined_rooms()
+            self.log.info('left ' + str(evt.room_id))
+        if (evt.content.membership == Membership.JOIN
+                and evt.state_key == self.client.mxid):
+            self.joined_rooms = await self.client.get_joined_rooms()
+            self.log.info('joined ' + str(evt.room_id))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
