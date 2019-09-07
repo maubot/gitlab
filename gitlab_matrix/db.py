@@ -26,7 +26,7 @@ class Alias(Base):
 
     user_id = Column(String(255), primary_key=True)
     gitlab_server = Column(Text, primary_key=True)
-    alias = Column(Text, nullable=False)
+    alias = Column(Text, primary_key=True, nullable=False)
     __table_args__ = (ForeignKeyConstraint([user_id,
                                             gitlab_server],
                                            [Token.user_id,
