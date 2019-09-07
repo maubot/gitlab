@@ -163,26 +163,26 @@ class Gitlab(Plugin):
         await evt.reply("Pong")
 
     @gitlab.subcommand("server", aliases=("s"),
-                       help="Show your Gitlab servers.")
+                       help="Manage Gitlab Servers.")
     async def server(self) -> None:
         pass
 
     @server.subcommand("login", aliases=("l"),
                        help="Add a Gitlab access token for a Gitlab server.")
     @command.argument("url", "Gitlab server URL")
-    @command.argument("token", "Gitlab access token")
+    @command.argument("token", "Gitlab access token", pass_raw=True)
     async def server_login(self, evt: MessageEvent,
                            url: str, token: str) -> None:
         gl = Gl(url, private_token=token)
         try:
             gl.auth()
-            self.db.add_login(evt.sender, url, token)
         except GitlabAuthenticationError:
             await evt.reply("Invalid access token!")
             return
         except Exception as e:
             await evt.reply("GitLab login failed: {0}".format(e))
             return
+        self.db.add_login(evt.sender, url, token)
         msg = "Successfully logged into GitLab at {0} as {1}\n"
         await evt.reply(msg.format(url, gl.user.name))
 
@@ -204,7 +204,48 @@ class Gitlab(Plugin):
             return
         msg: str = "You are currently loged in:\n\n"
         for server in servers:
-            msg += " + {0!s}\n".format(server)
+            msg += "+ {0!s}\n".format(server)
+        await evt.reply(msg)
+
+    @gitlab.subcommand("alias", aliases=("a"),
+                       help="Manage Gitlab server aliases.")
+    async def alias(self) -> None:
+        pass
+
+    @alias.subcommand("add", aliases=("a"),
+                      help="Add a alias to a Gitlab Server.")
+    @command.argument("url", "Gitlab Server URL")
+    @command.argument("alias", "Gitlab Server alias")
+    async def alias_add(self, evt: MessageEvent, url: str, alias: str) -> None:
+        if url not in self.db.get_servers(evt.sender):
+            await evt.reply("You can't add an alias to a "
+                            "Gitlab server you are not logedin.")
+            return
+        aliases = [x[1] for x in self.db.get_aliases(evt.sender)]
+        if alias in aliases:
+            await evt.reply("Alias alredy in use.")
+            return
+        self.db.add_alias(evt.sender, url, alias)
+        msg = "Added alias {0} to server {1}"
+        await evt.reply(msg.format(alias, url))
+
+    @alias.subcommand("rm",
+                      help="Remove a alias to a Gitlab Server.")
+    @command.argument("alias", "Gitlab Server alias")
+    async def alias_rm(self, evt: MessageEvent, alias: str) -> None:
+        self.db.rm_alias(evt.sender, alias)
+        await evt.reply("Removed alias {0}.".format(alias))
+
+    @alias.subcommand("list", aliases=("l"),
+                      help="Show your Gitlab server aliases.")
+    async def alias_list(self, evt: MessageEvent) -> None:
+        aliases = self.db.get_aliases(evt.sender)
+        if not aliases:
+            await evt.reply("You don't have any aliases.")
+            return
+        msg: str = "You have the following aliases:\n\n"
+        for alias in aliases:
+            msg += "+ {1} = {0}\n".format(*alias)
         await evt.reply(msg)
 
     @classmethod

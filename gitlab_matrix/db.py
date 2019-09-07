@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from sqlalchemy import (Column, String, Text,
-                        ForeignKeyConstraint)
+                        ForeignKeyConstraint, or_)
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -45,14 +45,14 @@ class Database:
 
     def get_servers(self, mxid: UserID) -> List[str]:
         s = self.Session()
-        rows = (s.query(Token).filter(Token.user_id == mxid))
+        rows = s.query(Token).filter(Token.user_id == mxid)
 
         servers = [row.gitlab_server for row in rows]
 
         return servers
 
-    def add_login(self, user_id: str, url: str, token: str) -> None:
-        token = Token(user_id, url, token)
+    def add_login(self, mxid: str, url: str, token: str) -> None:
+        token = Token(user_id=mxid, gitlab_server=url, api_token=token)
         s = self.Session()
         s.add(token)
         s.commit()
@@ -63,8 +63,46 @@ class Database:
         s.delete(token)
         s.commit()
 
-    def get_login(self, mxid: UserID, url: str) -> Tuple[str, str]:
+    def get_login(self, mxid: UserID, url_alias: str) -> Tuple[str, str]:
         s = self.Session()
-        row = s.query(Token).filter(Token.user_id == mxid,
-                                    Token.gitlab_server == url).one()
+        row = (s.query(Token).join("aliases")
+                             .filter(Token.user_id == mxid,
+                                     or_(Token.gitlab_server == url_alias,
+                                         Alias.alias == url_alias)).one())
         return (row.gitlab_server, row.api_token)
+
+    def get_login_by_server(self, mxid: UserID, url: str) -> Tuple[str, str]:
+        s = self.Session()
+        row = s.query(Token).get((mxid, url))
+        return (row.gitlab_server, row.api_token)
+
+    def get_login_by_alias(self, mxid: str, alias: str) -> Tuple[str, str]:
+        s = self.Session()
+        row = s.query(Token).join("aliases").filter(Token.user_id == mxid,
+                                                    Alias.alias == alias).one()
+        return (row.gitlab_server, row.api_token)
+
+    def add_alias(self, mxid: UserID, url: str, alias: str) -> None:
+        s = self.Session()
+        alias = Alias(user_id=mxid, gitlab_server=url, alias=alias)
+        s.add(alias)
+        s.commit()
+
+    def rm_alias(self, mxid: UserID, alias: str) -> None:
+        s = self.Session()
+        alias = s.query(Alias).filter(Alias.user_id == mxid,
+                                      Alias.alias == alias).one()
+        s.delete(alias)
+        s.commit()
+
+    def get_aliases(self, user_id: UserID) -> List[Tuple[str, str]]:
+        s = self.Session()
+        rows = s.query(Alias).filter(Alias.user_id == user_id)
+        return [(row.gitlab_server, row.alias) for row in rows]
+
+    def get_aliases_per_server(self, user_id: UserID,
+                               url: str) -> List[Tuple[str, str]]:
+        s = self.Session()
+        rows = s.query(Alias).filter(Alias.user_id == user_id,
+                                     Alias.gitlab_server == url)
+        return [(row.gitlab_server, row.alias) for row in rows]
