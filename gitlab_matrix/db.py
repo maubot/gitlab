@@ -1,12 +1,16 @@
 from typing import List, Tuple
 
 from sqlalchemy import (Column, String, Text,
-                        ForeignKeyConstraint, or_)
+                        ForeignKeyConstraint, or_,
+                        ForeignKey)
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
 
 from mautrix.types import UserID
+
+import logging as log
 
 Base = declarative_base()
 
@@ -18,6 +22,8 @@ class Token(Base):
     gitlab_server = Column(Text, primary_key=True, nullable=False)
     api_token = Column(Text, nullable=False)
     aliases = relationship("Alias", back_populates="token",
+                           cascade="all, delete-orphan")
+    default = relationship("Default", back_populates="token",
                            cascade="all, delete-orphan")
 
 
@@ -33,6 +39,15 @@ class Alias(Base):
                                             Token.gitlab_server]),
                       {})
     token = relationship("Token", back_populates="aliases")
+
+
+class Default(Base):
+    __tablename__ = "default"
+
+    user_id = Column(String(255), ForeignKey('token.user_id'),
+                     primary_key=True)
+    gitlab_server = Column(Text, ForeignKey('token.gitlab_server'))
+    token = relationship("Token", back_populates="default")
 
 
 class Database:
@@ -52,9 +67,18 @@ class Database:
         return servers
 
     def add_login(self, mxid: str, url: str, token: str) -> None:
-        token = Token(user_id=mxid, gitlab_server=url, api_token=token)
+        token_row = Token(user_id=mxid, gitlab_server=url, api_token=token)
+        default = Default(user_id=mxid, gitlab_server=url)
         s = self.Session()
-        s.add(token)
+        try:
+            s.add(token_row)
+            s.query(Default).filter(Default.user_id == mxid).one()
+        except NoResultFound:
+            s.add(default)
+        except MultipleResultsFound as e:
+            log.warn("Multiple Default Servers found.")
+            log.warn(e)
+            raise e
         s.commit()
 
     def rm_login(self, mxid: UserID, url: str) -> None:
@@ -63,12 +87,17 @@ class Database:
         s.delete(token)
         s.commit()
 
-    def get_login(self, mxid: UserID, url_alias: str) -> Tuple[str, str]:
+    def get_login(self, mxid: UserID,
+                  url_alias: str = None) -> Tuple[str, str]:
         s = self.Session()
-        row = (s.query(Token).join("aliases")
-                             .filter(Token.user_id == mxid,
-                                     or_(Token.gitlab_server == url_alias,
-                                         Alias.alias == url_alias)).one())
+        if url_alias:
+            row = (s.query(Token).join(Alias)
+                    .filter(Token.user_id == mxid,
+                            or_(Token.gitlab_server == url_alias,
+                                Alias.alias == url_alias)).one())
+        else:
+            row = (s.query(Token).join(Default)
+                    .filter(Token.user_id == mxid).one())
         return (row.gitlab_server, row.api_token)
 
     def get_login_by_server(self, mxid: UserID, url: str) -> Tuple[str, str]:
@@ -106,3 +135,9 @@ class Database:
         rows = s.query(Alias).filter(Alias.user_id == user_id,
                                      Alias.gitlab_server == url)
         return [(row.gitlab_server, row.alias) for row in rows]
+
+    def change_default(self, mxid: UserID, url: str) -> None:
+        s = self.Session()
+        default = s.query(Default).get((mxid,))
+        default.gitlab_server = url
+        s.commit()
