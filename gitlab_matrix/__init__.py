@@ -25,6 +25,8 @@ from .gitlab_hook import EventParse
 
 from .db import Database
 
+from urllib.parse import urlparse
+
 
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
@@ -207,13 +209,20 @@ class Gitlab(Plugin):
             msg += "+ {0!s}\n".format(server)
         await evt.reply(msg)
 
+    @server.subcommand("default",
+                       help="Change your default Gitlab server.")
+    @command.argument("url", "Gitlab server URL.")
+    async def server_default(self, evt: MessageEvent, url: str) -> None:
+        self.db.change_default(evt.sender, url)
+        await evt.reply("Changed the default server to {0}".format(url))
+
     @gitlab.subcommand("alias", aliases=("a"),
                        help="Manage Gitlab server aliases.")
     async def alias(self) -> None:
         pass
 
     @alias.subcommand("add", aliases=("a"),
-                      help="Add a alias to a Gitlab Server.")
+                      help="Add a alias to a Gitlab server.")
     @command.argument("url", "Gitlab Server URL")
     @command.argument("alias", "Gitlab Server alias")
     async def alias_add(self, evt: MessageEvent, url: str, alias: str) -> None:
@@ -230,7 +239,7 @@ class Gitlab(Plugin):
         await evt.reply(msg.format(alias, url))
 
     @alias.subcommand("rm",
-                      help="Remove a alias to a Gitlab Server.")
+                      help="Remove a alias to a Gitlab server.")
     @command.argument("alias", "Gitlab Server alias")
     async def alias_rm(self, evt: MessageEvent, alias: str) -> None:
         self.db.rm_alias(evt.sender, alias)
@@ -247,6 +256,27 @@ class Gitlab(Plugin):
         for alias in aliases:
             msg += "+ {1} = {0}\n".format(*alias)
         await evt.reply(msg)
+
+    @gitlab.subcommand("whoami",
+                       help="Check who you're logged in as.")
+    @command.argument('url_alias', "Gitlab Server URL or alias.",
+                      required=False)
+    async def whoami(self, evt: MessageEvent, url_alias: str) -> None:
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+        gl = Gl(login['gitlab_server'], private_token=login['api_token'])
+        try:
+            gl.auth()
+        except GitlabAuthenticationError:
+            await evt.reply("Invalid access token!")
+            return
+        except Exception as e:
+            await evt.reply("Gitlab login failed: {0}".format(e))
+            return
+        msg = "You're logged  into {0} as [{3}]({1}/{2})"
+        await evt.reply(msg.format(urlparse(gl._base_url).netloc,
+                                   gl._base_url,
+                                   gl.user.username,
+                                   gl.user.name))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
