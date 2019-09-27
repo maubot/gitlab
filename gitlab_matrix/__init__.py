@@ -297,6 +297,7 @@ class Gitlab(Plugin):
         await evt.reply(msg.format(repo_url,
                                    commit.short_id,
                                    commit.author_name,
+                                   # TODO: fix date format
                                    commit.committed_date,
                                    commit.message.replace("\n", "\n> ")))
         pass
