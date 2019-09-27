@@ -2,7 +2,7 @@ import asyncio
 
 from asyncio import Task
 
-from typing import List, Type, Awaitable
+from typing import List, Type, Awaitable, Tuple, Optional
 
 from aiohttp.web import Response, Request
 
@@ -24,6 +24,8 @@ from maubot.matrix import parse_markdown
 from .gitlab_hook import EventParse
 
 from .db import Database
+
+from .util import OptArgument
 
 from urllib.parse import urlparse
 
@@ -261,7 +263,7 @@ class Gitlab(Plugin):
                        help="Check who you're logged in as.")
     @command.argument('url_alias', "Gitlab Server URL or alias.",
                       required=False)
-    async def whoami(self, evt: MessageEvent, url_alias: str) -> None:
+    async def whoami(self, evt: MessageEvent, url_alias: str = None) -> None:
         login = self.db.get_login(evt.sender, url_alias=url_alias)
         gl = Gl(login['gitlab_server'], private_token=login['api_token'])
         try:
@@ -277,6 +279,27 @@ class Gitlab(Plugin):
                                    gl._base_url,
                                    gl.user.username,
                                    gl.user.name))
+
+    @gitlab.subcommand("show",
+                       help="Get details about a specific commit.")
+    @OptArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("hash", "Gitlab Commit Hash.")
+    async def show(self, evt: MessageEvent, repo: str,
+                   hash: str, url_alias: str = None) -> None:
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+        with Gl(login['gitlab_server'], private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            commit = project.commits.get(hash)
+            repo_url = "{0}/{1}/commit/{2}".format(gl._base_url,
+                                                   repo, commit.id)
+        msg = "[{0}](Commit {1}) by {2} at {3}:\n\n> {4}"
+        await evt.reply(msg.format(repo_url,
+                                   commit.short_id,
+                                   commit.author_name,
+                                   commit.committed_date,
+                                   commit.message.replace("\n", "\n> ")))
+        pass
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:

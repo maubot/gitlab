@@ -98,7 +98,8 @@ class Database:
                             or_(Token.gitlab_server == url_alias,
                                 Alias.alias == url_alias)).one())
         else:
-            row = (s.query(Token).join(Default, Default.user_id == Token.user_id)
+            row = (s.query(Token).join(Default,
+                                       Default.user_id == Token.user_id)
                     .filter(Token.user_id == mxid).one())
         return {'gitlab_server': row.gitlab_server, 'api_token': row.api_token}
 
