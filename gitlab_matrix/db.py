@@ -24,7 +24,7 @@ class Token(Base):
     aliases = relationship("Alias", back_populates="token",
                            cascade="all, delete-orphan")
     default = relationship("Default", back_populates="token",
-                           cascade="all, delete-orphan")
+                           cascade="all, delete-orphan", primaryjoin='Token.user_id==Default.user_id')
 
 
 class Alias(Base):
@@ -47,7 +47,7 @@ class Default(Base):
     user_id = Column(String(255), ForeignKey('token.user_id'),
                      primary_key=True)
     gitlab_server = Column(Text, ForeignKey('token.gitlab_server'))
-    token = relationship("Token", back_populates="default")
+    token = relationship("Token", back_populates="default", primaryjoin='Token.user_id==Default.user_id')
 
 
 class Database:
@@ -107,8 +107,8 @@ class Database:
 
     def get_login_by_alias(self, mxid: str, alias: str) -> Tuple[str, str]:
         s = self.Session()
-        row = s.query(Token).join("aliases").filter(Token.user_id == mxid,
-                                                    Alias.alias == alias).one()
+        row = s.query(Token).join(Alias).filter(Token.user_id == mxid,
+                                                Alias.alias == alias).one()
         return (row.gitlab_server, row.api_token)
 
     def add_alias(self, mxid: UserID, url: str, alias: str) -> None:
