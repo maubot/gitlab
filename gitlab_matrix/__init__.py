@@ -32,6 +32,8 @@ from urllib.parse import urlparse
 
 from re import sub
 
+from datetime import datetime
+
 
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
@@ -298,11 +300,15 @@ class Gitlab(Plugin):
             repo_url = "{0}/{1}/commit/{2}".format(gl._base_url,
                                                    repo, commit.id)
         msg = "[{0}](Commit {1}) by {2} at {3}:\n\n> {4}"
+
+        date = datetime.strptime(commit.committed_date,
+                                 '%Y-%m-%dT%H:%M:%S.%f%z')
+
         await evt.reply(msg.format(repo_url,
                                    commit.short_id,
                                    commit.author_name,
                                    # TODO: fix date format
-                                   commit.committed_date,
+                                   date.strftime('%d.%m.%Y %H:%M:%S %Z'),
                                    commit.message.replace("\n", "\n> ")))
 
     @gitlab.subcommand("diff",
