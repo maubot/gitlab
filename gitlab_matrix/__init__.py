@@ -32,6 +32,7 @@ from urllib.parse import urlparse
 
 from re import sub
 
+
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
         helper.copy("path")
@@ -320,18 +321,18 @@ class Gitlab(Plugin):
         for diff in diffs:
             msg = "{0}:\n<pre><code>".format(diff['new_path'])
             for line in diff['diff'].split("\n"):
-                if line[:2] == '@@':
+                if line.startswith('@@'):
                     line = sub(r"(@@ -[0-9]+,[0-9]+ \+[0-9]+,[0-9]+ @@)",
                                r"<font color='#00A'>\1</font>", line)
-                if line[:3] in ['+++', '---']:
+                if line.startswith(('+++', '---')):
                     msg += "<font color='#000'>{0}</font>\n".format(line)
-                elif line and line[0] == '+':
+                elif line.startswith('+'):
                     msg += "<font color='#0A0'>{0}</font>\n".format(line)
-                elif line and line[0] == '-':
+                elif line.startswith('-'):
                     msg += "<font color='#A00'>{0}</font>\n".format(line)
                 else:
                     msg += "<font color='#666'>{0}</font>\n".format(line)
-            msg = msg[:-1] + "</code></pre>\n"
+            msg = msg[:-2] + "</code></pre>"
             if first:
                 await evt.reply(msg, html_in_markdown=True)
                 first = False
