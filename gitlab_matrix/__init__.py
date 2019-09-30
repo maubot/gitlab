@@ -20,6 +20,7 @@ from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 from maubot import Plugin, MessageEvent
 
 from maubot.matrix import parse_markdown
+from mautrix.util.formatter import parse_html
 
 from .gitlab_hook import EventParse
 
@@ -29,6 +30,7 @@ from .util import OptArgument
 
 from urllib.parse import urlparse
 
+from re import sub
 
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
@@ -288,7 +290,8 @@ class Gitlab(Plugin):
     async def show(self, evt: MessageEvent, repo: str,
                    hash: str, url_alias: str = None) -> None:
         login = self.db.get_login(evt.sender, url_alias=url_alias)
-        with Gl(login['gitlab_server'], private_token=login['api_token']) as gl:
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
             project = gl.projects.get(repo)
             commit = project.commits.get(hash)
             repo_url = "{0}/{1}/commit/{2}".format(gl._base_url,
@@ -300,7 +303,47 @@ class Gitlab(Plugin):
                                    # TODO: fix date format
                                    commit.committed_date,
                                    commit.message.replace("\n", "\n> ")))
-        pass
+
+    @gitlab.subcommand("diff",
+                       help="Get the diff of a specific commit.")
+    @OptArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("hash", "Gitlab Commit Hash.")
+    async def diff(self, evt: MessageEvent, repo: str,
+                   hash: str, url_alias: str = None) -> None:
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            diffs = project.commits.get(hash).diff()
+        first = True
+        for diff in diffs:
+            msg = "{0}:\n<pre><code>".format(diff['new_path'])
+            for line in diff['diff'].split("\n"):
+                if line[:2] == '@@':
+                    line = sub(r"(@@ -[0-9]+,[0-9]+ \+[0-9]+,[0-9]+ @@)",
+                               r"<font color='#00A'>\1</font>", line)
+                if line[:3] in ['+++', '---']:
+                    msg += "<font color='#000'>{0}</font>\n".format(line)
+                elif line and line[0] == '+':
+                    msg += "<font color='#0A0'>{0}</font>\n".format(line)
+                elif line and line[0] == '-':
+                    msg += "<font color='#A00'>{0}</font>\n".format(line)
+                else:
+                    msg += "<font color='#666'>{0}</font>\n".format(line)
+            msg = msg[:-1] + "</code></pre>\n"
+            if first:
+                await evt.reply(msg, html_in_markdown=True)
+                first = False
+            else:
+                content = TextMessageEventContent(msgtype=MessageType.NOTICE,
+                                                  body=parse_html(msg),
+                                                  formatted_body=msg,
+                                                  format=Format.HTML
+                                                  )
+                await self.client.send_message_event(evt.room_id,
+                                                     EventType.ROOM_MESSAGE,
+                                                     content)
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
