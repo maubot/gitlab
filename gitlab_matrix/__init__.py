@@ -2,7 +2,7 @@ import asyncio
 
 from asyncio import Task
 
-from typing import List, Type, Awaitable, Tuple, Optional
+from typing import List, Type, Awaitable
 
 from aiohttp.web import Response, Request
 
@@ -26,7 +26,7 @@ from .gitlab_hook import EventParse
 
 from .db import Database
 
-from .util import OptArgument
+from .util import OptUrlAliasArgument
 
 from urllib.parse import urlparse
 
@@ -287,7 +287,7 @@ class Gitlab(Plugin):
 
     @gitlab.subcommand("show",
                        help="Get details about a specific commit.")
-    @OptArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("hash", "Gitlab Commit Hash.")
     async def show(self, evt: MessageEvent, repo: str,
@@ -307,13 +307,13 @@ class Gitlab(Plugin):
         await evt.reply(msg.format(repo_url,
                                    commit.short_id,
                                    commit.author_name,
-                                   # TODO: fix date format
+                                   # TODO: get timeformat from config
                                    date.strftime('%d.%m.%Y %H:%M:%S %Z'),
                                    commit.message.replace("\n", "\n> ")))
 
     @gitlab.subcommand("diff",
                        help="Get the diff of a specific commit.")
-    @OptArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("hash", "Gitlab Commit Hash.")
     async def diff(self, evt: MessageEvent, repo: str,
@@ -351,6 +351,38 @@ class Gitlab(Plugin):
                 await self.client.send_message_event(evt.room_id,
                                                      EventType.ROOM_MESSAGE,
                                                      content)
+
+    @gitlab.subcommand("log",
+                       help="Get the log of a specific repo.")
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=1)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("per_page", "Number of entries.", required=False)
+    @command.argument("page", "Pagenumber.", required=False)
+    async def log(self, evt: MessageEvent, repo: str, per_page: str,
+                  page: str, url_alias: str) -> None:
+
+        if not per_page:
+            per_page = 10
+        else:
+            per_page = int(per_page)
+
+        if not page:
+            page = 1
+        else:
+            page = int(page)
+
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            commits = project.commits.list(page=page, per_page=per_page)
+
+        msg = ''
+        for commit in commits:
+            msg += "<font colot='#AA0'>{0}</font> {1}<br/>\n"
+            msg = msg.format(commit.short_id, commit.message.split('\n')[0])
+        await evt.reply(msg, html_in_markdown=True)
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
