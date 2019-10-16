@@ -42,6 +42,7 @@ class Config(BaseProxyConfig):
         helper.copy("secret")
         helper.copy("base_command")
         helper.copy("send_as_notice")
+        helper.copy("timeformat")
 
 
 class Gitlab(Plugin):
@@ -307,8 +308,7 @@ class Gitlab(Plugin):
         await evt.reply(msg.format(repo_url,
                                    commit.short_id,
                                    commit.author_name,
-                                   # TODO: get timeformat from config
-                                   date.strftime('%d.%m.%Y %H:%M:%S %Z'),
+                                   date.strftime(self.config['timeformat']),
                                    commit.message.replace("\n", "\n> ")))
 
     @gitlab.subcommand("diff",
@@ -383,6 +383,32 @@ class Gitlab(Plugin):
             msg += "<font colot='#AA0'>{0}</font> {1}<br/>\n"
             msg = msg.format(commit.short_id, commit.message.split('\n')[0])
         await evt.reply(msg, html_in_markdown=True)
+
+    @gitlab.subcommand("issue",
+                       help="Manage Gitlab Issues.")
+    async def issue(self) -> None:
+        pass
+
+    @issue.subcommand("create",
+                      help=("Create an Issue. The issue body can "
+                            "be placed on a new line."))
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=3)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("title", "Gitlab issue title.", pass_raw=True,
+                      matches=r"""^((["'])(?:[^\2\\]|\\.*?)*?\2|[^"'].*?)(?:\s|$)""")
+    @command.argument("desc", "Gitlab issue description.", pass_raw=True)
+    async def issue_create(self, evt: MessageEvent, repo: str, title: str,
+                           desc: str, url_alias: str = None) -> None:
+
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            issue = project.issues.create({'title': title[0],
+                                           'description': desc})
+        await evt.reply('Created issue #{0}: {1}'.format(issue.id,
+                                                         issue.title))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
