@@ -463,6 +463,59 @@ class Gitlab(Plugin):
         await evt.reply("Reopened issue #{0}: {1}".format(issue.id,
                                                           issue.title))
 
+    @issue.subcommand("comment", help="Write a commant on an issue.")
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=3)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("id", "Issue Id.")
+    @command.argument("body", "Comment body.", pass_raw=True)
+    @GitlabLogin
+    async def issue_comment(self, evt: MessageEvent, repo: str,
+                            id: str, body: str, gl: Gl) -> None:
+
+        project = gl.projects.get(repo)
+        issue = project.issues.get(id)
+        issue.notes.create({'body': body})
+
+        await evt.reply("Commented on issue #{0}: {1}".format(issue.id,
+                                                              issue.title))
+
+    @issue.subcommand("comments", aliases=('read-comments'),
+                      help="Write a commant on an issue.")
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("id", "Issue Id.")
+    @command.argument("per_page", "Number of entries.", required=False)
+    @command.argument("page", "Pagenumber.", required=False)
+    @GitlabLogin
+    async def issue_comments_read(self, evt: MessageEvent, repo: str,
+                                  id: str, per_page: str,
+                                  page: str, gl: Gl) -> None:
+
+        if not per_page:
+            per_page = 5
+        else:
+            per_page = int(per_page)
+
+        if not page:
+            page = 1
+        else:
+            page = int(page)
+
+        project = gl.projects.get(repo)
+        issue = project.issues.get(id)
+        notes = issue.notes.list(per_page=per_page, page=page)
+
+        msg = ''
+        for note in notes:
+            date = datetime.strptime(note.created_at,
+                                     '%Y-%m-%dT%H:%M:%S.%f%z')
+            msg += '{0} at {1}:\n>{2}\n\n'
+            msg = msg.format(note.author['name'],
+                             date.strftime(self.config['timeformat']),
+                             note.body)
+
+        await evt.reply(msg)
+
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
         return Config
