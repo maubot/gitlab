@@ -26,7 +26,7 @@ from .gitlab_hook import EventParse
 
 from .db import Database
 
-from .util import OptUrlAliasArgument
+from .util import OptUrlAliasArgument, GitlabLogin
 
 from urllib.parse import urlparse
 
@@ -288,18 +288,17 @@ class Gitlab(Plugin):
 
     @gitlab.subcommand("show",
                        help="Get details about a specific commit.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("hash", "Gitlab Commit Hash.")
+    @GitlabLogin
     async def show(self, evt: MessageEvent, repo: str,
-                   hash: str, url_alias: str = None) -> None:
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            commit = project.commits.get(hash)
-            repo_url = "{0}/{1}/commit/{2}".format(gl._base_url,
-                                                   repo, commit.id)
+                   hash: str, gl: Gl) -> None:
+
+        project = gl.projects.get(repo)
+        commit = project.commits.get(hash)
+        repo_url = "{0}/{1}/commit/{2}".format(gl._base_url,
+                                               repo, commit.id)
         msg = "[{0}](Commit {1}) by {2} at {3}:\n\n> {4}"
 
         date = datetime.strptime(commit.committed_date,
@@ -313,16 +312,16 @@ class Gitlab(Plugin):
 
     @gitlab.subcommand("diff",
                        help="Get the diff of a specific commit.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("hash", "Gitlab Commit Hash.")
+    @GitlabLogin
     async def diff(self, evt: MessageEvent, repo: str,
-                   hash: str, url_alias: str = None) -> None:
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            diffs = project.commits.get(hash).diff()
+                   hash: str, gl: Gl) -> None:
+
+        project = gl.projects.get(repo)
+        diffs = project.commits.get(hash).diff()
+
         first = True
         for diff in diffs:
             msg = "{0}:\n<pre><code>".format(diff['new_path'])
@@ -354,12 +353,13 @@ class Gitlab(Plugin):
 
     @gitlab.subcommand("log",
                        help="Get the log of a specific repo.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=1)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=1)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("per_page", "Number of entries.", required=False)
     @command.argument("page", "Pagenumber.", required=False)
+    @GitlabLogin
     async def log(self, evt: MessageEvent, repo: str, per_page: str,
-                  page: str, url_alias: str) -> None:
+                  page: str, gl: Gl) -> None:
 
         if not per_page:
             per_page = 10
@@ -371,12 +371,8 @@ class Gitlab(Plugin):
         else:
             page = int(page)
 
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            commits = project.commits.list(page=page, per_page=per_page)
+        project = gl.projects.get(repo)
+        commits = project.commits.list(page=page, per_page=per_page)
 
         msg = ''
         for commit in commits:
@@ -392,38 +388,32 @@ class Gitlab(Plugin):
     @issue.subcommand("create",
                       help=("Create an Issue. The issue body can "
                             "be placed on a new line."))
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=3)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=3)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("title", "Gitlab issue title.", pass_raw=True,
                       matches=r"""^((["'])(?:[^\2\\]|\\.*?)*?\2|[^"'].*?)(?:\s|$)""")
     @command.argument("desc", "Gitlab issue description.", pass_raw=True)
+    @GitlabLogin
     async def issue_create(self, evt: MessageEvent, repo: str, title: str,
-                           desc: str, url_alias: str = None) -> None:
+                           desc: str, gl: Gl) -> None:
 
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            issue = project.issues.create({'title': title[0][1:-1],
-                                           'description': desc})
+        project = gl.projects.get(repo)
+        issue = project.issues.create({'title': title[0][1:-1],
+                                       'description': desc})
         await evt.reply('Created issue #{0}: {1}'.format(issue.id,
                                                          issue.title))
 
     @issue.subcommand("read", aliases=('view', 'show'),
                       help="Read an issue.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("id", "Issue Id.")
+    @GitlabLogin
     async def issue_read(self, evt: MessageEvent, repo: str,
-                         id: str, url_alias: str) -> None:
+                         id: str, gl: Gl) -> None:
 
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            issue = project.issues.get(id)
+        project = gl.projects.get(repo)
+        issue = project.issues.get(id)
 
         msg = "Issue #{0} by {1}: [{2}]({3})\n<br/>"
         msg = msg.format(issue.iid, issue.author['name'], issue.title, issue.web_url)
@@ -440,42 +430,36 @@ class Gitlab(Plugin):
         await evt.reply(msg, html_in_markdown=True)
 
     @issue.subcommand("close", help="Close an issue.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("id", "Issue Id.")
+    @GitlabLogin
     async def issue_close(self, evt: MessageEvent, repo: str,
-                          id: str, url_alias: str) -> None:
+                          id: str, gl: Gl) -> None:
 
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            issue = project.issues.get(id)
-            issue.state_event = 'close'
-            issue.save()
+        project = gl.projects.get(repo)
+        issue = project.issues.get(id)
+        issue.state_event = 'close'
+        issue.save()
 
         await evt.reply("Closed issue #{0}: {1}".format(issue.id,
                                                         issue.title))
 
     @issue.subcommand("reopen", help="Reopen an issue.")
-    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=2)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("id", "Issue Id.")
+    @GitlabLogin
     async def issue_reopen(self, evt: MessageEvent, repo: str,
-                          id: str, url_alias: str) -> None:
+                           id: str, gl: Gl) -> None:
 
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-
-        with Gl(login['gitlab_server'],
-                private_token=login['api_token']) as gl:
-            project = gl.projects.get(repo)
-            issue = project.issues.get(id)
-            issue.state_event = 'reopen'
-            issue.save()
+        project = gl.projects.get(repo)
+        issue = project.issues.get(id)
+        issue.state_event = 'reopen'
+        issue.save()
 
         await evt.reply("Reopened issue #{0}: {1}".format(issue.id,
-                                                        issue.title))
+                                                          issue.title))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
