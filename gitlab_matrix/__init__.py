@@ -500,19 +500,11 @@ class Gitlab(Plugin):
 
     @gitlab.subcommand("whoami",
                        help="Check who you're logged in as.")
-    @command.argument('url_alias', "Gitlab Server URL or alias.",
-                      required=False)
-    async def whoami(self, evt: MessageEvent, url_alias: str = None) -> None:
-        login = self.db.get_login(evt.sender, url_alias=url_alias)
-        gl = Gl(login['gitlab_server'], private_token=login['api_token'])
-        try:
-            gl.auth()
-        except GitlabAuthenticationError:
-            await evt.reply("Invalid access token!")
-            return
-        except Exception as e:
-            await evt.reply("Gitlab login failed: {0}".format(e))
-            return
+    @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=0)
+    @GitlabLogin
+    async def whoami(self, evt: MessageEvent, gl: Gl) -> None:
+
+        gl.auth()
         msg = "You're logged  into {0} as [{3}]({1}/{2})"
         await evt.reply(msg.format(urlparse(gl._base_url).netloc,
                                    gl._base_url,

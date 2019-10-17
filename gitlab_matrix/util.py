@@ -4,7 +4,6 @@ from maubot.handlers.command import Argument
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabAuthenticationError
 from typing import Dict
-from traceback import print_tb
 
 
 class OptUrlAliasArgument(Argument):
@@ -36,5 +35,5 @@ def GitlabLogin(func):
             await evt.reply("Invalid Access Token.\n\n{0}".format(e))
         except Exception as e:
             self.log.info("Failed to handle Command.", exc_info=True)
-            self.log.log.debug(e)
-        return wrapper
+            self.log.debug(e)
+    return wrapper
