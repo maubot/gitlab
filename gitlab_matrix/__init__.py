@@ -74,6 +74,9 @@ class Gitlab(Plugin):
 
         if 'X-Gitlab-Event' not in req.headers:
             self.log.debug('missing X-Gitlab-Event Header')
+            task = asyncio.current_task()
+            if task:
+                self.task_list.remove(task)
             return None
 
         try:
@@ -83,7 +86,7 @@ class Gitlab(Plugin):
         except Exception as e:
             self.log.info("Failed to handle Gitlab event", exc_info=True)
             self.log.debug(e)
-            msg = ''
+            msg = None
 
         if msg:
             await self.send_gitlab_event(req.query['room'], msg)
