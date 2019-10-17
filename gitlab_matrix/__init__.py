@@ -391,7 +391,7 @@ class Gitlab(Plugin):
     @OptUrlAliasArgument("login", "Gitlab Server URL or alias.", arg_num=3)
     @command.argument("repo", "Gitlab Repository.")
     @command.argument("title", "Gitlab issue title.", pass_raw=True,
-                      matches=r"""^((["'])(?:[^\2\\]|\\.*?)*?\2|[^"'].*?)(?:\s|$)""")
+                      matches=r"""^((["'])(?:[^\2\\]|\\.*?)*?\2|[^"'].*?)(?:\s|$)""")  # noqa: E501
     @command.argument("desc", "Gitlab issue description.", pass_raw=True)
     @GitlabLogin
     async def issue_create(self, evt: MessageEvent, repo: str, title: str,
@@ -416,12 +416,14 @@ class Gitlab(Plugin):
         issue = project.issues.get(id)
 
         msg = "Issue #{0} by {1}: [{2}]({3})\n<br/>"
-        msg = msg.format(issue.iid, issue.author['name'], issue.title, issue.web_url)
+        msg = msg.format(issue.iid, issue.author['name'],
+                         issue.title, issue.web_url)
         names = []
         for assignee in issue.assignees:
             names.append(assignee.name)
         if len(names) > 1:
-            msg += "Assigned to {0} and {1}.".format(", ".join(names[:-1]), names[-1])
+            msg += "Assigned to {0} and {1}.".format(", ".join(names[:-1]),
+                                                     names[-1])
         elif len(names) == 1:
             msg += "Assigned to {0}.".format(names[0])
         msg += "<br/>\n>{0}<br/>\n"

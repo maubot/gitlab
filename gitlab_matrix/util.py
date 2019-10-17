@@ -4,7 +4,6 @@ from maubot.handlers.command import Argument
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabAuthenticationError
 from typing import Dict
-import logging
 
 
 class OptUrlAliasArgument(Argument):
@@ -17,7 +16,6 @@ class OptUrlAliasArgument(Argument):
               **kwargs) -> Tuple[str, Any]:
         vals = val.split(" ")
 
-        logging.warn('OptUrlAliasArgument')
         if (len(vals) > self.arg_num
                 and (vals[0] in instance.db.get_servers(evt.sender)
                      or vals[0] in instance.db.get_aliases(evt.sender))):
