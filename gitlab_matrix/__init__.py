@@ -405,10 +405,77 @@ class Gitlab(Plugin):
         with Gl(login['gitlab_server'],
                 private_token=login['api_token']) as gl:
             project = gl.projects.get(repo)
-            issue = project.issues.create({'title': title[0],
+            issue = project.issues.create({'title': title[0][1:-1],
                                            'description': desc})
         await evt.reply('Created issue #{0}: {1}'.format(issue.id,
                                                          issue.title))
+
+    @issue.subcommand("read", aliases=('view', 'show'),
+                      help="Read an issue.")
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("id", "Issue Id.")
+    async def issue_read(self, evt: MessageEvent, repo: str,
+                         id: str, url_alias: str) -> None:
+
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            issue = project.issues.get(id)
+
+        msg = "Issue #{0} by {1}: [{2}]({3})\n<br/>"
+        msg = msg.format(issue.iid, issue.author['name'], issue.title, issue.web_url)
+        names = []
+        for assignee in issue.assignees:
+            names.append(assignee.name)
+        if len(names) > 1:
+            msg += "Assigned to {0} and {1}.".format(", ".join(names[:-1]), names[-1])
+        elif len(names) == 1:
+            msg += "Assigned to {0}.".format(names[0])
+        msg += "<br/>\n>{0}<br/>\n"
+        msg = msg.format(issue.description.replace("\n", "<br/>\n"))
+
+        await evt.reply(msg, html_in_markdown=True)
+
+    @issue.subcommand("close", help="Close an issue.")
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("id", "Issue Id.")
+    async def issue_close(self, evt: MessageEvent, repo: str,
+                          id: str, url_alias: str) -> None:
+
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            issue = project.issues.get(id)
+            issue.state_event = 'close'
+            issue.save()
+
+        await evt.reply("Closed issue #{0}: {1}".format(issue.id,
+                                                        issue.title))
+
+    @issue.subcommand("reopen", help="Reopen an issue.")
+    @OptUrlAliasArgument("url_alias", "Gitlab Server URL or alias.", arg_num=2)
+    @command.argument("repo", "Gitlab Repository.")
+    @command.argument("id", "Issue Id.")
+    async def issue_reopen(self, evt: MessageEvent, repo: str,
+                          id: str, url_alias: str) -> None:
+
+        login = self.db.get_login(evt.sender, url_alias=url_alias)
+
+        with Gl(login['gitlab_server'],
+                private_token=login['api_token']) as gl:
+            project = gl.projects.get(repo)
+            issue = project.issues.get(id)
+            issue.state_event = 'reopen'
+            issue.save()
+
+        await evt.reply("Reopened issue #{0}: {1}".format(issue.id,
+                                                        issue.title))
 
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
