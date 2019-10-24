@@ -670,6 +670,7 @@ EventParse: Dict[str, GitlabEventType] = {
         'Push Hook': GitlabPushEvent,
         'Tag Push Hook': GitlabTagEvent,
         'Issue Hook': GitlabIssueEvent,
+        'Confidential Issue Hook': GitlabIssueEvent,
         'Note Hook': GitlabCommentEvent,
         'Merge Request Hook': GitlabMergeRequestEvent,
         'Wiki Page Hook': GitlabWikiPageEvent,
