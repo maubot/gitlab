@@ -449,6 +449,8 @@ class GitlabIssueEvent(SerializableAttrs['GitlabIssueEvent']):
         action = self.object_attributes.action
         if not action or action == 'update' or len(action) == 0:
             return None
+        elif action == 'close':
+            action += 'd'
         elif not action[-2:-1] == 'ed':
             action += 'ed'
 
