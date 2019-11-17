@@ -1,6 +1,5 @@
 path: "/webhooks"
-port: 29313
 secret: "passwd"
 base_command: "gitlab"
 send_as_notice: true
-timeformat: '%d.%m.%Y %H:%M:%S %Z'
+time_format: "%d.%m.%Y %H:%M:%S %Z"
