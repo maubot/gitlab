@@ -1,0 +1,17 @@
+maubot: 0.1.0
+id: xyz.maubot.gitlab
+version: 0.1.0
+license: AGPL-3.0-or-later
+modules:
+- gitlab_matrix
+main_class: GitlabBot
+
+extra_files:
+- base-config.yaml
+
+soft_dependencies:
+# Not needed if only used as webhook (TODO)
+- python-gitlab
+
+webapp: true
+database: true
