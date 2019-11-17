@@ -70,7 +70,6 @@ def with_gitlab_session(func: Decoratable) -> Decorator:
     async def wrapper(self, evt: MessageEvent, login: AuthInfo, **kwargs) -> Any:
         try:
             repo = kwargs["repo"]
-            print(repo, isinstance(repo, DefaultRepoInfo))
             if isinstance(repo, DefaultRepoInfo):
                 if repo.server not in self.db.get_servers(evt.sender):
                     await evt.reply(f"You're not logged into {repo.server}")
