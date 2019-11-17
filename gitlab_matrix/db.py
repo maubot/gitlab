@@ -27,6 +27,7 @@ from mautrix.types import UserID, EventID, RoomID
 
 AuthInfo = NamedTuple('AuthInfo', server=str, api_token=str)
 AliasInfo = NamedTuple('AliasInfo', server=str, alias=str)
+DefaultRepoInfo = NamedTuple('DefaultRepoInfo', server=str, repo=str)
 Base = declarative_base()
 
 
@@ -63,6 +64,14 @@ class Default(Base):
                          primaryjoin="Token.user_id==Default.user_id")
 
 
+class DefaultRepo(Base):
+    __tablename__ = "default_repo"
+
+    room_id: RoomID = Column(String(255), primary_key=True)
+    server: str = Column(String(255), nullable=False)
+    repo: str = Column(String(255), nullable=False)
+
+
 class MatrixMessage(Base):
     __tablename__ = "matrix_message"
 
@@ -89,6 +98,16 @@ class Database:
     def put_event(self, message_id: str, room_id: RoomID, event_id: EventID) -> None:
         s: Session = self.Session()
         s.add(MatrixMessage(message_id=message_id, room_id=room_id, event_id=event_id))
+        s.commit()
+
+    def get_default_repo(self, room_id: RoomID) -> DefaultRepoInfo:
+        s: Session = self.Session()
+        default = s.query(DefaultRepo).get((room_id,))
+        return DefaultRepoInfo(default.server, default.repo) if default else None
+
+    def set_default_repo(self, room_id: RoomID, server: str, repo: str) -> None:
+        s: Session = self.Session()
+        s.merge(DefaultRepo(room_id=room_id, server=server, repo=repo))
         s.commit()
 
     def get_servers(self, mxid: UserID) -> List[str]:

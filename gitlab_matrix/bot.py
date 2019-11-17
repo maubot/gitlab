@@ -24,7 +24,7 @@ import re
 from aiohttp.web import Response, Request
 from yarl import URL
 
-from gitlab.exceptions import GitlabAuthenticationError
+from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
 from gitlab import Gitlab as Gl
 
 from mautrix.types import EventType, RoomID, MessageType, StateEvent, Membership
@@ -34,8 +34,8 @@ from maubot.handlers import event, web, command
 
 from .gitlab_hook import EventParse
 from .db import Database
-from .util import (OptUrlAliasArgument, with_gitlab_session, Config, optional_int, quote_parser,
-                   sigil_int)
+from .util import (OptUrlAliasArgument, OptRepoArgument, Config, with_gitlab_session, optional_int,
+                   quote_parser, sigil_int)
 
 
 class GitlabBot(Plugin):
@@ -141,6 +141,34 @@ class GitlabBot(Plugin):
     async def gitlab(self) -> None:
         pass
 
+    # region !gitlab room
+
+    @gitlab.subcommand("room", aliases=("r",), help="Manage the settings for this room.")
+    async def room(self) -> None:
+        pass
+
+    @room.subcommand("default_repo", aliases=("default", "repo", "d", "r"),
+                     help="Set the default repo for this room.")
+    @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
+    @command.argument("repo", "repository")
+    @with_gitlab_session
+    async def default_repo(self, evt: MessageEvent, repo: str, gl: Gl) -> None:
+        power_levels = await self.client.get_state_event(evt.room_id, EventType.ROOM_POWER_LEVELS)
+        if power_levels.get_user_level(evt.sender) < power_levels.state_default:
+            await evt.reply("You don't have the permission to change the default repo of this room")
+            return
+
+        try:
+            project = gl.projects.get(repo)
+        except GitlabGetError as e:
+            if e.response_code == 404:
+                await evt.reply(f"Couldn't find {repo} on {gl.url}")
+                return
+            raise
+        self.db.set_default_repo(evt.room_id, gl.url, repo)
+        await evt.reply(f"Changed the default repo to {repo} on {gl.url}")
+
+    # endregion
     # region !gitlab server
 
     @gitlab.subcommand("server", aliases=("s",), help="Manage GitLab Servers.")
@@ -234,7 +262,7 @@ class GitlabBot(Plugin):
 
     @issue.subcommand("close", help="Close an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID")
     @with_gitlab_session
     async def issue_close(self, evt: MessageEvent, repo: str, id: str, gl: Gl) -> None:
@@ -247,7 +275,7 @@ class GitlabBot(Plugin):
 
     @issue.subcommand("comment", help="Write a commant on an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=3)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID", parser=sigil_int)
     @command.argument("body", "comment body", pass_raw=True)
     @with_gitlab_session
@@ -261,7 +289,7 @@ class GitlabBot(Plugin):
     @issue.subcommand("comments", aliases=("read-comments",),
                       help="Write a commant on an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID", parser=sigil_int)
     @command.argument("page", "page", required=False, parser=optional_int)
     @command.argument("per_page", "entries per page", required=False, parser=optional_int)
@@ -284,7 +312,7 @@ class GitlabBot(Plugin):
 
     @issue.subcommand("create", help="Create an Issue. The issue body can be placed on a new line.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=3)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("title", "issue title", pass_raw=True, parser=quote_parser)
     @command.argument("desc", "issue body", pass_raw=True, required=False,
                       parser=partial(quote_parser, return_all=True))
@@ -298,7 +326,7 @@ class GitlabBot(Plugin):
     @issue.subcommand("read", aliases=("view", "show"),
                       help="Read an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID", parser=sigil_int)
     @with_gitlab_session
     async def issue_read(self, evt: MessageEvent, repo: str, id: int, gl: Gl) -> None:
@@ -317,7 +345,7 @@ class GitlabBot(Plugin):
 
     @issue.subcommand("reopen", help="Reopen an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID", parser=sigil_int)
     @with_gitlab_session
     async def issue_reopen(self, evt: MessageEvent, repo: str, id: int, gl: Gl) -> None:
@@ -329,11 +357,15 @@ class GitlabBot(Plugin):
         await evt.reply(f"Reopened issue #{issue.iid}: {issue.title}")
 
     # endregion
-    # region Commit info (diff, log, show)
+    # region !gitlab commit
 
-    @gitlab.subcommand("diff", help="Get the diff of a specific commit.")
+    @gitlab.subcommand("commit", help="View GitLab commits.")
+    async def commit(self) -> None:
+        pass
+
+    @commit.subcommand("diff", help="Get the diff of a specific commit.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("hash", "commit hash")
     @with_gitlab_session
     async def diff(self, evt: MessageEvent, repo: str, hash: str, gl: Gl) -> None:
@@ -359,10 +391,9 @@ class GitlabBot(Plugin):
                 diff="\n".join(color_diff(line) for line in diff["diff"].split("\n")))
             await evt.respond(msg, reply=index == 0, allow_html=True)
 
-    @gitlab.subcommand("log",
-                       help="Get the log of a specific repo.")
+    @commit.subcommand("log", help="Get the log of a specific repo.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=1)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("page", "page", required=False, parser=optional_int)
     @command.argument("per_page", "entries per page", required=False, parser=optional_int)
     @with_gitlab_session
@@ -384,9 +415,9 @@ class GitlabBot(Plugin):
                                 for commit in commits),
                         allow_html=True)
 
-    @gitlab.subcommand("show", help="Get details about a specific commit.")
+    @commit.subcommand("show", help="Get details about a specific commit.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
-    @command.argument("repo", "repository")
+    @OptRepoArgument("repo", "repository")
     @command.argument("hash", "commit hash")
     @with_gitlab_session
     async def show(self, evt: MessageEvent, repo: str, hash: str, gl: Gl) -> None:

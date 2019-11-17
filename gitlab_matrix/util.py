@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from typing import Tuple, Any, Optional, Callable, TYPE_CHECKING
+import re
 
 from gitlab import Gitlab as Gl
 from gitlab.exceptions import GitlabAuthenticationError
@@ -24,7 +25,7 @@ from maubot.handlers.command import Argument
 
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
-from .db import AuthInfo
+from .db import AuthInfo, DefaultRepoInfo
 
 if TYPE_CHECKING:
     from .bot import GitlabBot
@@ -36,8 +37,8 @@ class OptUrlAliasArgument(Argument):
         super().__init__(name, label=label, required=required, pass_raw=True)
         self.arg_num = arg_num
 
-    def match(self, val: str, evt: MessageEvent, instance: 'GitlabBot', **kwargs) -> Tuple[
-        str, Any]:
+    def match(self, val: str, evt: MessageEvent, instance: 'GitlabBot', **kwargs
+              ) -> Tuple[str, Any]:
         vals = val.split(" ")
 
         if (len(vals) > self.arg_num
@@ -47,12 +48,38 @@ class OptUrlAliasArgument(Argument):
         return val, instance.db.get_login(evt.sender)
 
 
+class OptRepoArgument(Argument):
+    def __init__(self, name: str, label: str = None, required: bool = False) -> None:
+        super().__init__(name, label=label, required=required)
+
+    def match(self, val: str, evt: MessageEvent, instance: 'GitlabBot', **kwargs
+              ) -> Tuple[str, Any]:
+        repo = re.split(r"\s", val, 1)[0]
+
+        default_repo = instance.db.get_default_repo(evt.room_id)
+        if not default_repo or re.fullmatch(r"\w+/[\w/]+", repo):
+            return val[len(repo):], repo
+        return val, default_repo
+
+
 Decoratable = Callable[['GitlabBot', MessageEvent, Gl, Any], Any]
 Decorator = Callable[['GitlabBot', MessageEvent, AuthInfo, Any], Any]
 
 
 def with_gitlab_session(func: Decoratable) -> Decorator:
     async def wrapper(self, evt: MessageEvent, login: AuthInfo, **kwargs) -> Any:
+        try:
+            repo = kwargs["repo"]
+            print(repo, isinstance(repo, DefaultRepoInfo))
+            if isinstance(repo, DefaultRepoInfo):
+                if repo.server not in self.db.get_servers(evt.sender):
+                    await evt.reply(f"You're not logged into {repo.server}")
+                    return
+                login = self.db.get_login(evt.sender, url_alias=repo.server)
+                kwargs["repo"] = repo.repo
+        except KeyError:
+            pass
+
         try:
             with Gl(login.server, login.api_token) as gl:
                 return await func(self, evt, gl=gl, **kwargs)
