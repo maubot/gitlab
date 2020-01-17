@@ -306,7 +306,7 @@ class GitlabBot(Plugin):
         issue = project.issues.get(id)
 
         msg = f"Issue #{issue.iid} by {issue.author['name']}: [{issue.title}]({issue.web_url})  \n"
-        names = [assignee.name for assignee in issue.assignees]
+        names = [assignee['name'] for assignee in issue.assignees]
         if len(names) > 1:
             msg += f"Assigned to {', '.join(names[:-1])} and {names[-1]}.  \n"
         elif len(names) == 1:
