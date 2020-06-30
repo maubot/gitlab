@@ -55,6 +55,11 @@ def datetime_deserializer(data: JSON) -> datetime:
     except ValueError:
         pass
 
+    try:
+        return datetime.strptime(data, "%Y-%m-%d")
+    except ValueError:
+        pass
+
     raise ValueError(data)
 
 
