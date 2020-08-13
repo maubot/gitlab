@@ -542,7 +542,7 @@ class GitlabTagEvent(SerializableAttrs['GitlabTagEvent'], GitlabEvent):
 def past_tense(action: str) -> str:
     if not action:
         return action
-    elif action[-2:-1] != "ed":
+    elif action[-2:] != "ed":
         if action[-1] == "e":
             return f"{action}d"
         return f"{action}ed"
