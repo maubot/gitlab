@@ -674,8 +674,8 @@ def pluralize(val: int, unit: str) -> str:
 
 
 def format_duration(seconds: Union[int, float]) -> str:
-    seconds = round(seconds, 1)
-    minutes, seconds = divmod(seconds, 60)
+    frac_seconds = round(seconds - int(seconds), 1)
+    minutes, seconds = divmod(int(seconds), 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
     parts = []
@@ -686,7 +686,7 @@ def format_duration(seconds: Union[int, float]) -> str:
     if minutes > 0:
         parts.append(pluralize(minutes, "minute"))
     if seconds > 0:
-        parts.append(pluralize(seconds, "second"))
+        parts.append(pluralize(seconds + frac_seconds, "second"))
 
     if len(parts) == 1:
         return "in " + parts[0]
