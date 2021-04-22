@@ -501,8 +501,8 @@ class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
         return (f"[{self.project.namespace} / {self.project.name}] "
                 f"{self.total_commits_count} new commit{self.pluralizer} "
                 f"to [{branch}]({self.project.web_url}/tree/{branch}) "
-                f"by {self.user_name}\n\n"
-                + "\n".join(self.format_commit(commit) for commit in reversed(self.commits)))
+                f"by {self.user_name}\n  "
+                + "\n".join(self.format_commit(commit) for commit in self.commits))
 
 
 @dataclass
