@@ -1,0 +1,77 @@
+{{ templates.repo_sender_prefix }}
+{% if changes.labels %}
+    {{ label_changes(changes.labels.added, changes.labels.removed) }}
+    {{ issue_or_merge_link(object_attributes) }}
+{# Milestone webhooks don't have the milestone displayname 3:< #}
+{#{% elif changes.milestone_id %}#}
+{#    {% if not changes.milestone_id.current %}#}
+{#        removed the milestone from {{ issue_or_merge_link(object_attributes) }}#}
+{#    {% else %}#}
+{#        added {{ issue_or_merge_link(object_attributes) }} to milestone#}
+{#    {% endif %}#}
+{% elif changes.assignees %}
+    {{ assignee_changes(changes.assignees.added, changes.assignees.removed) }}
+    {{ issue_or_merge_link(object_attributes) }}
+{% elif changes.time_estimate %}
+    {% if not changes.time_estimate.current %}
+        removed the time estimate of {{ issue_or_merge_link(object_attributes) }}
+    {% elif not changes.time_estimate.previous %}
+        set the time estimate of {{ issue_or_merge_link(object_attributes) }} to
+        <strong>{{ util.format_time(changes.time_estimate.current) }}</strong>
+    {% else %}
+        {% if changes.time_estimate.current > changes.time_estimate.previous %}
+            increased
+        {% else %}
+            decreased
+        {% endif %}
+        the time estimate of {{ issue_or_merge_link(object_attributes) }} by
+        <strong>{{ util.format_time(changes.time_estimate.current - changes.time_estimate.previous) }}</strong>
+    {% endif %}
+{% elif changes.total_time_spent %}
+    {% if not changes.total_time_spent.current %}
+        removed the time spent
+    {% else %}
+        {% if changes.total_time_spent.current > (changes.total_time_spent.previous or 0) %}
+            spent <strong>{{ util.format_time(changes.total_time_spent.current - (changes.total_time_spent.previous or 0)) }}</strong>
+        {% else %}
+            subtracted <strong>{{ util.format_time(changes.total_time_spent.current - changes.total_time_spent.previous) }}</strong>
+            from the time spent
+        {% endif %}
+    {% endif %}
+    on {{ issue_or_merge_link(object_attributes) }}
+{% elif changes.weight %}
+    {% if not changes.weight.current %}
+        removed
+    {% else %}
+        changed
+    {% endif %}
+    the weight of {{ issue_or_merge_link(object_attributes) }}
+    {% if changes.weight.current %}
+        to <strong>{{ changes.weight.current }}</strong>
+    {% endif %}
+{% elif changes.due_date %}
+    {% if not changes.due_date.current %}
+        removed the due date of {{ issue_or_merge_link(object_attributes) }}
+    {% else %}
+        set the due date of {{ issue_or_merge_link(object_attributes) }}
+        to <strong>{{ changes.due_date.current.strftime("%B %d, %Y") }}</strong>
+    {% endif %}
+{% elif changes.confidential %}
+    made {{ issue_or_merge_link(object_attributes) }}
+    {% if changes.confidential.current %}
+        confidential
+    {% else %}
+        non-confidential
+    {% endif %}
+{% elif changes.discussion_locked %}
+    {% if changes.discussion_locked.current %}
+        locked discussion in
+    {% else %}
+        unlocked discussion in
+    {% endif %}
+    {{ issue_or_merge_link(object_attributes) }}
+{% elif changes.title %}
+    changed the title of {{ issue_or_merge_link(object_attributes, title=false) }} to {{ changes.title.current }}
+{% else %}
+    {% do abort() %}
+{% endif %}

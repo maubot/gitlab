@@ -1,4 +1,4 @@
-maubot: 0.1.0
+maubot: 0.1.2
 id: xyz.maubot.gitlab
 version: 0.1.0
 license: AGPL-3.0-or-later
@@ -8,6 +8,9 @@ main_class: GitlabBot
 
 extra_files:
 - base-config.yaml
+- templates/macros.html
+- templates/messages/*.html
+- templates/mixins/*.html
 
 soft_dependencies:
 # Not needed if only used as webhook (TODO)

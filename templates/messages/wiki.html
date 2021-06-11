@@ -1,0 +1,5 @@
+{{ templates.repo_sender_prefix }}
+{{ "edited" if object_attributes.action == UPDATE else object_attributes.action.past_tense }}
+<a href="{{ object_attributes.url }}">{{ object_attributes.title }}</a>
+on the wiki
+{%- if object_attributes.message -%}: {{ object_attributes.message }}{% endif %}

@@ -1,6 +1,6 @@
 # gitlab - A GitLab client and webhook receiver for maubot
 # Copyright (C) 2019 Lorenz Steinert
-# Copyright (C) 2019 Tulir Asokan
+# Copyright (C) 2021 Tulir Asokan
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -14,13 +14,16 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import List, Union, Dict, Optional, Type, NewType
+from typing import List, Union, Dict, Optional, Type, NewType, ClassVar, Tuple, Iterable
 from datetime import datetime
 
+from jinja2 import TemplateNotFound
 from attr import dataclass
 import attr
 
-from mautrix.types import JSON, SerializableAttrs, SerializerError, Obj, serializer, deserializer
+from mautrix.types import JSON, ExtensibleEnum, SerializableAttrs, serializer, deserializer
+
+from .util import contrast, hex_to_rgb
 
 
 @serializer(datetime)
@@ -63,8 +66,18 @@ def datetime_deserializer(data: JSON) -> datetime:
     raise ValueError(data)
 
 
-@dataclass
+class LabelType(ExtensibleEnum):
+    PROJECT = "ProjectLabel"
+    # TODO group?
+
+
+@dataclass(frozen=True)
 class GitlabLabel(SerializableAttrs['GitlabLabel']):
+    contrast_threshold: ClassVar[float] = 1.5
+    white_rgb: ClassVar[Tuple[int, int, int]] = (1, 1, 1)
+    white_hex: ClassVar[str] = "#ffffff"
+    black_hex: ClassVar[str] = "#000000"
+
     id: int
     title: str
     color: str
@@ -73,15 +86,15 @@ class GitlabLabel(SerializableAttrs['GitlabLabel']):
     updated_at: datetime
     template: bool
     description: str
-    type: str
-    group_id: int
+    type: LabelType
+    group_id: Optional[int]
+    remove_on_close: bool
 
-
-@dataclass
-class GitlabAssignee(SerializableAttrs['GitlabAssignee']):
-    name: str
-    username: str
-    avatar_url: str
+    @property
+    def foreground_color(self) -> str:
+        return (self.white_hex
+                if contrast(hex_to_rgb(self.color), self.white_rgb) >= self.contrast_threshold
+                else self.black_hex)
 
 
 @dataclass
@@ -102,6 +115,34 @@ class GitlabProject(SerializableAttrs['GitlabProject']):
     ssh_url: Optional[str] = None
     http_url: Optional[str] = None
 
+    @property
+    def gitlab_base_url(self) -> str:
+        return self.web_url.split(self.path_with_namespace)[0].rstrip("/")
+
+
+@dataclass(eq=False, hash=False)
+class GitlabUser(SerializableAttrs['GitlabUser']):
+    name: str
+    username: Optional[str] = None
+    avatar_url: Optional[str] = None
+    email: Optional[str] = None
+    id: Optional[int] = None
+    web_url: Optional[str] = None
+
+    def __hash__(self) -> int:
+        return self.id
+
+    def __eq__(self, other: 'GitlabUser') -> bool:
+        if not isinstance(other, GitlabUser):
+            return False
+        return self.id == other.id
+
+
+@dataclass
+class GitlabAuthor(SerializableAttrs['GitlabAuthor']):
+    name: str
+    email: str
+
 
 @dataclass
 class GitlabCommit(SerializableAttrs['GitlabCommit']):
@@ -109,16 +150,23 @@ class GitlabCommit(SerializableAttrs['GitlabCommit']):
     message: str
     timestamp: Optional[datetime] = None
     url: Optional[str] = None
-    author: Optional[str] = None
+    author: Optional[GitlabAuthor] = None
     added: Optional[List[str]] = None
     modified: Optional[List[str]] = None
     removed: Optional[List[str]] = None
 
-
-@dataclass
-class GitlabAuthor(SerializableAttrs['GitlabAuthor']):
-    name: str
-    email: str
+    @property
+    def cut_message(self) -> str:
+        max_len = 72
+        message = self.message.strip()
+        if "\n" in message:
+            message = message.split("\n")[0]
+            if len(message) <= max_len:
+                message += " […]"
+                return message
+        if len(message) > max_len:
+            message = message[:max_len] + "…"
+        return message
 
 
 @dataclass
@@ -165,37 +213,78 @@ class GitlabSource(SerializableAttrs['GitlabSource']):
 
 GitlabTarget = NewType('GitlabTarget', GitlabSource)
 
-GitlabChangeState = NewType('GitlabChangeState', Union[List[GitlabLabel], List[GitlabAssignee],
-                                                       str, int])
 
+class GitlabChangeWrapper:
+    previous: list
+    current: list
 
-@deserializer(GitlabChangeState)
-def deserialize_change_state(val: JSON) -> GitlabChangeState:
-    if isinstance(val, list):
-        return [deserialize_change_state(item) for item in val]
-    elif isinstance(val, dict):
-        try:
-            return GitlabLabel.deserialize(val)
-        except SerializerError:
-            pass
-        try:
-            return GitlabAssignee.deserialize(val)
-        except SerializerError:
-            pass
-        return Obj(**val)
-    return val
+    @property
+    def added(self) -> list:
+        previous_set = set(self.previous)
+        return [item for item in self.current if item not in previous_set]
+
+    @property
+    def removed(self) -> list:
+        current_set = set(self.current)
+        return [item for item in self.previous if item not in current_set]
 
 
 @dataclass
-class GitlabChange(SerializableAttrs['GitlabChange']):
-    previous: GitlabChangeState
-    current: GitlabChangeState
+class GitlabDatetimeChange(SerializableAttrs['GitlabDatetimeChange']):
+    previous: Optional[datetime]
+    current: datetime
 
 
 @dataclass
-class GitlabLabelChanges(SerializableAttrs['GitlabLabelChanges']):
+class GitlabAssigneeChanges(GitlabChangeWrapper, SerializableAttrs['GitlabAssigneeChanges']):
+    previous: List[GitlabUser]
+    current: List[GitlabUser]
+
+
+@dataclass
+class GitlabLabelChanges(GitlabChangeWrapper, SerializableAttrs['GitlabLabelChanges']):
     previous: List[GitlabLabel]
     current: List[GitlabLabel]
+
+
+@dataclass
+class GitlabIntChange(SerializableAttrs['GitlabIntChange']):
+    previous: Optional[int]
+    current: Optional[int]
+
+
+@dataclass
+class GitlabBoolChange(SerializableAttrs['GitlabBoolChange']):
+    previous: Optional[bool]
+    current: Optional[bool]
+
+
+@dataclass
+class GitlabStringChange(SerializableAttrs['GitlabStringChange']):
+    previous: Optional[str]
+    current: Optional[str]
+
+
+@dataclass
+class GitlabChanges(SerializableAttrs['GitlabChanges']):
+    created_at: Optional[GitlabDatetimeChange] = None
+    updated_at: Optional[GitlabDatetimeChange] = None
+    updated_by: Optional[GitlabIntChange] = None
+    author_id: Optional[GitlabIntChange] = None
+    id: Optional[GitlabIntChange] = None
+    iid: Optional[GitlabIntChange] = None
+    project_id: Optional[GitlabIntChange] = None
+    milestone_id: Optional[GitlabIntChange] = None
+    description: Optional[GitlabStringChange] = None
+    title: Optional[GitlabStringChange] = None
+    labels: Optional[GitlabLabelChanges] = None
+    assignees: Optional[GitlabAssigneeChanges] = None
+    time_estimate: Optional[GitlabIntChange] = None
+    total_time_spent: Optional[GitlabIntChange] = None
+    weight: Optional[GitlabIntChange] = None
+    due_date: Optional[GitlabDatetimeChange] = None
+    confidential: Optional[GitlabBoolChange] = None
+    discussion_locked: Optional[GitlabBoolChange] = None
 
 
 @dataclass
@@ -231,13 +320,28 @@ class GitlabSnippet(SerializableAttrs['GitlabSnippet']):
     visibility_level: int
 
 
-@dataclass
-class GitlabUser(SerializableAttrs['GitlabUser']):
-    name: str
-    username: Optional[str] = None
-    avatar_url: Optional[str] = None
-    id: Optional[int] = None
-    email: Optional[str] = None
+class Action(ExtensibleEnum):
+    OPEN = "open"
+    CLOSE = "close"
+    UPDATE = "update"
+    CREATE = "create"
+    DELETE = "delete"
+
+    @property
+    def past_tense(self) -> str:
+        action = self.value
+        if not action:
+            return action
+        elif action[-2:] != "ed":
+            if action[-1] == "e":
+                return f"{action}d"
+            return f"{action}ed"
+        return action
+
+
+class NoteableType(ExtensibleEnum):
+    ISSUE = "Issue"
+    MERGE_REQUEST = "MergeRequest"
 
 
 @dataclass
@@ -262,7 +366,7 @@ class GitlabIssueAttributes(SerializableAttrs['GitlabIssueAttributes']):
     human_time_estimate: Optional[str] = None
     human_total_time_spent: Optional[str] = None
 
-    action: Optional[str] = None
+    action: Optional[Action] = None
     assignee_id: Optional[int] = None
     assignee_ids: Optional[List[int]] = None
     branch_name: Optional[str] = None
@@ -280,7 +384,7 @@ class GitlabIssueAttributes(SerializableAttrs['GitlabIssueAttributes']):
 class GitlabCommentAttributes(SerializableAttrs['GitlabCommentAttributes']):
     id: int
     note: str
-    noteable_type: str
+    noteable_type: NoteableType
     project_id: int
     url: str
     author_id: int
@@ -343,7 +447,7 @@ class GitlabMergeRequestAttributes(SerializableAttrs['GitlabMergeRequestAttribut
     assignee_id: Optional[int] = None
     assignee_ids: Optional[List[int]] = None
     assignee: Optional[GitlabUser] = None
-    action: Optional[str] = None
+    action: Optional[Action] = None
 
 
 @dataclass
@@ -353,7 +457,7 @@ class GitlabWikiPageAttributes(SerializableAttrs['GitlabWikiAttributes']):
     format: str
     slug: str
     url: str
-    action: str
+    action: Action
     message: Optional[str] = None
 
 
@@ -418,7 +522,7 @@ class GitlabMergeRequest(SerializableAttrs['GitlabMergeRequest']):
     target: GitlabTarget
     last_commit: GitlabCommit
     work_in_progress: bool
-    assignee: GitlabAssignee
+    assignee: GitlabUser
 
 
 @dataclass
@@ -437,14 +541,22 @@ class GitlabBuild(SerializableAttrs['GitlabBuild']):
     artifacts_file: GitlabArtifact
 
 
+@dataclass
 class GitlabEvent:
-    @property
-    def has_matrix_message(self) -> bool:
-        return True
+    def preprocess(self) -> List['GitlabEvent']:
+        return [self]
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        return "Missing message content"
+    def template_name(self) -> str:
+        raise TemplateNotFound("")
+
+    @property
+    def meta(self) -> JSON:
+        return {}
+
+    @property
+    def event_properties(self) -> Iterable[str]:
+        return []
 
     @property
     def matrix_message_edit_id(self) -> Optional[str]:
@@ -458,8 +570,10 @@ class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
     after: str
     ref: str
     checkout_sha: str
+    message: Optional[str]
     user_id: int
     user_name: str
+    user_username: str
     user_email: str
     user_avatar: str
     project_id: int
@@ -468,85 +582,60 @@ class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
     commits: List[GitlabCommit]
     total_commits_count: int
 
-    def format_commit(self, commit: GitlabCommit) -> str:
-        lines = commit.message.strip().split("\n")
-        message = lines[0][:80]
-        if len(lines[0]) > 80:
-            message += "…"
-        elif len(lines) > 1:
-            message += " (…)"
-        return f"* [{commit.id[:8]}]({self.project.web_url}/commit/{commit.id}): {message}"
+    @property
+    def user(self) -> GitlabUser:
+        return GitlabUser(id=self.user_id, name=self.user_name, email=self.user_email,
+                          username=self.user_username, avatar_url=self.user_avatar,
+                          web_url=f"{self.project.gitlab_base_url}/{self.user_username}")
 
     @property
-    def pluralizer(self) -> str:
-        return "s" if self.total_commits_count != 1 else ""
+    def template_name(self) -> str:
+        return "tag" if self.ref_type == "tag" else "push"
 
     @property
-    def branch(self) -> str:
-        return self.ref.replace("refs/heads/", "")
+    def event_properties(self) -> Iterable[str]:
+        return "user", "is_new_ref", "is_deleted_ref", "ref_name", "ref_type", "ref_url"
 
     @property
-    def has_matrix_message(self) -> bool:
-        return True
+    def is_new_ref(self) -> bool:
+        return self.before == "0" * len(self.before)
 
     @property
-    def matrix_message(self) -> str:
-        branch = self.branch
-
-        if self.total_commits_count == 0:
-            return (f"[{self.project.namespace} / {self.project.name}] {self.user_name}"
-                    " force pushed to, created or deleted branch"
-                    f" [{branch}]({self.project.web_url}/tree/{branch})")
-
-        return (f"[{self.project.namespace} / {self.project.name}] "
-                f"{self.total_commits_count} new commit{self.pluralizer} "
-                f"to [{branch}]({self.project.web_url}/tree/{branch}) "
-                f"by {self.user_name}\n  "
-                + "\n".join(self.format_commit(commit) for commit in self.commits))
-
-
-@dataclass
-class GitlabTagEvent(SerializableAttrs['GitlabTagEvent'], GitlabEvent):
-    object_kind: int
-    before: str
-    after: str
-    ref: str
-    checkout_sha: str
-    user_id: int
-    user_name: str
-    user_avatar: str
-    project_id: int
-    project: GitlabProject
-    repository: GitlabRepository
-    commits: List[GitlabCommit]
-    total_commits_count: int
+    def is_deleted_ref(self) -> bool:
+        return self.after == "0" * len(self.after)
 
     @property
-    def tag(self) -> str:
-        return self.ref.replace("refs/tags/", "")
+    def ref_type(self) -> str:
+        if self.ref.startswith("refs/heads/"):
+            return "branch"
+        elif self.ref.startswith("refs/tags/"):
+            return "tag"
+        else:
+            return "ref"
 
     @property
-    def has_matrix_message(self) -> bool:
-        return self.object_kind == "tag_push"
+    def ref_name(self) -> str:
+        return self.ref.split("/", 2)[2]
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        if self.object_kind != "tag_push":
+    def ref_url(self) -> Optional[str]:
+        if self.ref.startswith("refs/heads/"):
+            return f"{self.project.web_url}/-/branches/{self.ref_name}"
+        elif self.ref.startswith("refs/tags/"):
+            return f"{self.project.web_url}/-/tags/{self.ref_name}"
+        else:
             return None
 
-        tag = self.tag
-        return (f"[{self.project.namespace} / {self.project.name}] {self.user_name} created tag "
-                f"[{tag}]({self.project.web_url}/tags/{tag}) at commit {self.checkout_sha[:8]}")
 
-
-def past_tense(action: str) -> str:
-    if not action:
-        return action
-    elif action[-2:] != "ed":
-        if action[-1] == "e":
-            return f"{action}d"
-        return f"{action}ed"
-    return action
+def split_updates(evt: Union['GitlabIssueEvent', 'GitlabMergeRequestEvent']) -> List[GitlabEvent]:
+    output = []
+    # We don't want to handle multiple issue change types in a single Matrix message,
+    # so split each change into a separate event.
+    for field in attr.fields(GitlabChanges):
+        value = getattr(evt.changes, field.name)
+        if value:
+            output.append(attr.evolve(evt, changes=GitlabChanges(**{field.name: value})))
+    return output
 
 
 @dataclass
@@ -556,27 +645,33 @@ class GitlabIssueEvent(SerializableAttrs['GitlabIssueEvent'], GitlabEvent):
     project: GitlabProject
     repository: GitlabRepository
     object_attributes: GitlabIssueAttributes
-    assignees: Optional[List[GitlabAssignee]] = None
+    assignees: Optional[List[GitlabUser]] = None
     labels: Optional[List[GitlabLabel]] = None
-    changes: Optional[Dict[str, GitlabChange]] = None
+    changes: Optional[GitlabChanges] = None
+
+    def preprocess(self) -> List['GitlabIssueEvent']:
+        users_to_mutate = [self.user]
+        if self.changes.assignees:
+            users_to_mutate += self.changes.assignees.previous
+            users_to_mutate += self.changes.assignees.current
+        if self.assignees:
+            users_to_mutate += self.assignees
+        for user in users_to_mutate:
+            user.web_url = f"{self.project.gitlab_base_url}/{user.username}"
+
+        return split_updates(self) if self.action == Action.UPDATE else [self]
 
     @property
-    def has_matrix_message(self) -> bool:
-        return bool(self.object_attributes.action and self.object_attributes.action != "update")
+    def template_name(self) -> str:
+        return f"issue_{self.action.key.lower()}"
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        action = past_tense(self.object_attributes.action)
-        if not action or action == "updated":
-            return None
+    def event_properties(self) -> Iterable[str]:
+        return "action",
 
-        confidential = ""
-        if self.object_attributes.confidential:
-            confidential = "confidential "
-
-        return (f"[{self.project.namespace} / {self.project.name}] {self.user.name} {action} "
-                f"{confidential}issue [{self.object_attributes.title} "
-                f"(#{self.object_attributes.issue_id})]({self.object_attributes.url})")
+    @property
+    def action(self) -> Action:
+        return self.object_attributes.action
 
 
 @dataclass
@@ -592,30 +687,13 @@ class GitlabCommentEvent(SerializableAttrs['GitlabCommentEvent'], GitlabEvent):
     issue: Optional[GitlabIssue] = None
     snippet: Optional[GitlabSnippet] = None
 
-    @property
-    def has_matrix_message(self) -> bool:
-        nt = self.object_attributes.noteable_type
-        return (nt == "Issue" and self.issue) or (nt == "MergeRequest" and self.merge_request)
+    def preprocess(self) -> List['GitlabCommentEvent']:
+        self.user.web_url = f"{self.project.gitlab_base_url}/{self.user.username}"
+        return [self]
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        noteable_type = self.object_attributes.noteable_type
-        if self.issue and noteable_type == "Issue":
-            note_type = "issue"
-            id = f"#{self.issue.issue_id}"
-            title = self.issue.title
-        elif self.merge_request and noteable_type == "MergeRequest":
-            note_type = "merge request"
-            id = f"!{self.merge_request.merge_request_id}"
-            title = self.merge_request.title
-        else:
-            return None
-
-        note = "\n".join(f"> {line}" for line in self.object_attributes.note.split("\n"))
-
-        return (f"[{self.project.namespace} / {self.project.name}] {self.user.name} "
-                f"[commented]({self.object_attributes.url}) on {note_type} {title} ({id}):\n\n"
-                f"{note}")
+    def template_name(self) -> str:
+        return "comment"
 
 
 @dataclass
@@ -626,22 +704,29 @@ class GitlabMergeRequestEvent(SerializableAttrs['GitlabMergeRequestEvent'], Gitl
     repository: GitlabRepository
     object_attributes: GitlabMergeRequestAttributes
     labels: List[GitlabLabel]
-    changes: Dict[str, GitlabChange]
+    changes: GitlabChanges
+
+    def preprocess(self) -> List['GitlabMergeRequestEvent']:
+        users_to_mutate = [self.user]
+        if self.changes.assignees:
+            users_to_mutate += self.changes.assignees.previous
+            users_to_mutate += self.changes.assignees.current
+        for user in users_to_mutate:
+            user.web_url = f"{self.project.gitlab_base_url}/{user.username}"
+
+        return split_updates(self) if self.action == Action.UPDATE else [self]
 
     @property
-    def has_matrix_message(self) -> bool:
-        return self.object_attributes.action != "update"
+    def template_name(self) -> str:
+        return "issue_update" if self.action == Action.UPDATE else "merge_request"
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        action = past_tense(self.object_attributes.action)
+    def event_properties(self) -> Iterable[str]:
+        return "action",
 
-        if not action or action == "updated" or not self.object_attributes.target:
-            return None
-
-        return (f"[{self.project.namespace} / {self.project.name}] {self.user.name} {action} "
-                f"merge request [{self.object_attributes.title} "
-                f"(!{self.object_attributes.merge_request_id})]({self.object_attributes.url})")
+    @property
+    def action(self) -> Action:
+        return self.object_attributes.action
 
 
 @dataclass
@@ -652,45 +737,13 @@ class GitlabWikiPageEvent(SerializableAttrs['GitlabWikiPageEvent'], GitlabEvent)
     wiki: GitlabWiki
     object_attributes: GitlabWikiPageAttributes
 
-    @property
-    def has_matrix_message(self) -> bool:
-        return bool(self.object_attributes.action)
+    def preprocess(self) -> List['GitlabWikiPageEvent']:
+        self.user.web_url = f"{self.project.gitlab_base_url}/{self.user.username}"
+        return [self]
 
     @property
-    def matrix_message(self) -> Optional[str]:
-        action = past_tense(self.object_attributes.action)
-
-        if not action:
-            return None
-
-        return (f"[{self.project.namespace} / {self.project.name}] {self.user.name} {action} "
-                f"page on wiki [{self.object_attributes.title}]({self.object_attributes.url})")
-
-
-def pluralize(val: int, unit: str) -> str:
-    if val == 1:
-        return f"{val} {unit}"
-    return f"{val} {unit}s"
-
-
-def format_duration(seconds: Union[int, float]) -> str:
-    frac_seconds = round(seconds - int(seconds), 1)
-    minutes, seconds = divmod(int(seconds), 60)
-    hours, minutes = divmod(minutes, 60)
-    days, hours = divmod(hours, 24)
-    parts = []
-    if days > 0:
-        parts.append(pluralize(days, "day"))
-    if hours > 0:
-        parts.append(pluralize(hours, "hour"))
-    if minutes > 0:
-        parts.append(pluralize(minutes, "minute"))
-    if seconds > 0:
-        parts.append(pluralize(seconds + frac_seconds, "second"))
-
-    if len(parts) == 1:
-        return "in " + parts[0]
-    return "in " + ", ".join(parts[:-1]) + f" and {parts[-1]}"
+    def template_name(self) -> str:
+        return "wiki"
 
 
 @dataclass
@@ -703,36 +756,28 @@ class GitlabPipelineEvent(SerializableAttrs['GitlabPipelineEvent'], GitlabEvent)
     builds: List[GitlabBuild]
 
     @property
-    def formatted_duration(self) -> str:
-        return format_duration(self.object_attributes.duration)
-
-    @property
     def matrix_message_edit_id(self) -> str:
         return f"pipeline-{self.object_attributes.id}"
 
-    @property
-    def has_matrix_message(self) -> bool:
-        return self.object_attributes.status in ("pending", "running", "success", "failed")
-
-    @property
-    def matrix_message(self) -> str:
-        type = "tag" if self.object_attributes.tag else "branch"
-        prefix = (f"[{self.project.namespace} / {self.project.name}] "
-                  f"Pipeline {self.object_attributes.id} on {type} {self.object_attributes.ref}")
-
-        if self.object_attributes.status == "pending":
-            return f"{prefix} pending"
-        elif self.object_attributes.status == "running":
-            return f"{prefix} started"
-
-        builds = "\n".join(f"* [{build.name}:{build.stage} ({build.id})]"
-                           f"({self.project.web_url}/-/jobs/{build.id}) - {build.status}"
-                           for build in self.builds)
-
-        if self.object_attributes.status == "success":
-            return f"{prefix} successfully completed in {self.formatted_duration}\n\n{builds}"
-        elif self.object_attributes.status == "failed":
-            return f"{prefix} failed in {self.formatted_duration}\n\n{builds}"
+    # @property
+    # def matrix_message(self) -> str:
+    #     type = "tag" if self.object_attributes.tag else "branch"
+    #     prefix = (f"[{self.project.namespace} / {self.project.name}] "
+    #               f"Pipeline {self.object_attributes.id} on {type} {self.object_attributes.ref}")
+    #
+    #     if self.object_attributes.status == "pending":
+    #         return f"{prefix} pending"
+    #     elif self.object_attributes.status == "running":
+    #         return f"{prefix} started"
+    #
+    #     builds = "\n".join(f"* [{build.name}:{build.stage} ({build.id})]"
+    #                        f"({self.project.web_url}/-/jobs/{build.id}) - {build.status}"
+    #                        for build in self.builds)
+    #
+    #     if self.object_attributes.status == "success":
+    #         return f"{prefix} successfully completed in {self.formatted_duration}\n\n{builds}"
+    #     elif self.object_attributes.status == "failed":
+    #         return f"{prefix} failed in {self.formatted_duration}\n\n{builds}"
 
 
 @dataclass
@@ -758,35 +803,26 @@ class GitlabJobEvent(SerializableAttrs['GitlabJobEvent'], GitlabEvent):
     repository: GitlabRepository
 
     @property
-    def formatted_build_duration(self) -> str:
-        return format_duration(self.build_duration)
-
-    @property
     def matrix_message_edit_id(self) -> str:
         return f"job-{self.build_id}"
 
-    @property
-    def has_matrix_message(self) -> bool:
-        return self.build_status in ("pending", "running", "skipped", "success", "failed")
-
-    @property
-    def matrix_message(self) -> str:
-        prefix = (f"[{self.project_name}] Job [{self.build_name}:{self.build_stage} "
-                  f"({self.build_id})]({self.repository.homepage}/-/jobs/{self.build_id}) ")
-        if self.build_status == "pending":
-            return f"{prefix} pending"
-        elif self.build_status == "running":
-            return f"{prefix} started"
-        elif self.build_status == "skipped":
-            return f"{prefix} skipped"
-        elif self.build_status == "success":
-            return f"{prefix} successfully completed in {self.formatted_build_duration}"
-        elif self.build_status == "failed":
-            return f"{prefix} failed in {self.formatted_build_duration}"
+    # @property
+    # def matrix_message(self) -> str:
+    #     prefix = (f"[{self.project_name}] Job [{self.build_name}:{self.build_stage} "
+    #               f"({self.build_id})]({self.repository.homepage}/-/jobs/{self.build_id}) ")
+    #     if self.build_status == "pending":
+    #         return f"{prefix} pending"
+    #     elif self.build_status == "running":
+    #         return f"{prefix} started"
+    #     elif self.build_status == "skipped":
+    #         return f"{prefix} skipped"
+    #     elif self.build_status == "success":
+    #         return f"{prefix} successfully completed in {self.formatted_build_duration}"
+    #     elif self.build_status == "failed":
+    #         return f"{prefix} failed in {self.formatted_build_duration}"
 
 
 GitlabEventType = Union[Type[GitlabPushEvent],
-                        Type[GitlabTagEvent],
                         Type[GitlabIssueEvent],
                         Type[GitlabCommentEvent],
                         Type[GitlabMergeRequestEvent],
@@ -796,7 +832,7 @@ GitlabEventType = Union[Type[GitlabPushEvent],
 
 EventParse: Dict[str, GitlabEventType] = {
     "Push Hook": GitlabPushEvent,
-    "Tag Push Hook": GitlabTagEvent,
+    "Tag Push Hook": GitlabPushEvent,
     "Issue Hook": GitlabIssueEvent,
     "Confidential Issue Hook": GitlabIssueEvent,
     "Note Hook": GitlabCommentEvent,
@@ -804,4 +840,8 @@ EventParse: Dict[str, GitlabEventType] = {
     "Wiki Page Hook": GitlabWikiPageEvent,
     "Pipeline Hook": GitlabPipelineEvent,
     "Job Hook": GitlabJobEvent
+}
+
+OTHER_ENUMS = {
+    "NoteableType": NoteableType,
 }

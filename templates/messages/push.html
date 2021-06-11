@@ -1,0 +1,20 @@
+{{ templates.repo_sender_prefix }}
+{% if is_deleted_ref %}
+    deleted branch
+{% else %}
+    pushed {{ total_commits_count }} commit{{ pluralize(total_commits_count) }} to
+{% endif %}
+<a data-mautrix-exclude-plaintext href="{{ ref_url }}">{{ ref_name }}</a>
+{%- if is_new_ref %} (new branch){% endif -%}
+{%- if commits|length > 0 %}:{% endif -%}
+<ul>
+    {% for commit in commits %}
+        <li>
+            <code><a href="{{ commit.url }}">{{ commit.id[:8] }}</a></code>
+            {{ commit.cut_message }}
+            {% if commit.author.name != user_name %}
+                by {{ commit.author.name }}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

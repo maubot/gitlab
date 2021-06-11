@@ -14,21 +14,14 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Tuple, Any, Optional, Callable, TYPE_CHECKING
+from typing import Tuple, Any, Optional, TYPE_CHECKING
 import re
-
-from gitlab import Gitlab as Gl
-from gitlab.exceptions import GitlabAuthenticationError
 
 from maubot import MessageEvent
 from maubot.handlers.command import Argument
 
-from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
-
-from .db import AuthInfo, DefaultRepoInfo
-
 if TYPE_CHECKING:
-    from .bot import GitlabBot
+    from ..bot import GitlabBot
 
 
 class OptUrlAliasArgument(Argument):
@@ -60,43 +53,6 @@ class OptRepoArgument(Argument):
         if not default_repo or re.fullmatch(r"\w+/[\w/]+", repo):
             return val[len(repo):], repo
         return val, default_repo
-
-
-Decoratable = Callable[['GitlabBot', MessageEvent, Gl, Any], Any]
-Decorator = Callable[['GitlabBot', MessageEvent, AuthInfo, Any], Any]
-
-
-def with_gitlab_session(func: Decoratable) -> Decorator:
-    async def wrapper(self, evt: MessageEvent, login: AuthInfo, **kwargs) -> Any:
-        try:
-            repo = kwargs["repo"]
-            if isinstance(repo, DefaultRepoInfo):
-                if repo.server not in self.db.get_servers(evt.sender):
-                    await evt.reply(f"You're not logged into {repo.server}")
-                    return
-                login = self.db.get_login(evt.sender, url_alias=repo.server)
-                kwargs["repo"] = repo.repo
-        except KeyError:
-            pass
-
-        try:
-            with Gl(login.server, login.api_token) as gl:
-                return await func(self, evt, gl=gl, **kwargs)
-        except GitlabAuthenticationError as e:
-            await evt.reply("Invalid access token.\n\n{0}".format(e))
-        except Exception:
-            self.log.error("Failed to handle command", exc_info=True)
-
-    return wrapper
-
-
-class Config(BaseProxyConfig):
-    def do_update(self, helper: ConfigUpdateHelper) -> None:
-        helper.copy("path")
-        helper.copy("secret")
-        helper.copy("base_command")
-        helper.copy("send_as_notice")
-        helper.copy("time_format")
 
 
 def optional_int(val: str) -> Optional[int]:

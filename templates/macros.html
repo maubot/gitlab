@@ -1,0 +1,78 @@
+{%- macro repo_link(project) -%}
+    <a data-mautrix-exclude-plaintext href="{{ project.web_url }}">{{ project.path_with_namespace|e }}</a>
+{%- endmacro -%}
+{%- macro user_link(user) -%}
+    <a data-mautrix-exclude-plaintext href="{{ user.web_url }}">{{ user.username|e }}</a>
+{%- endmacro -%}
+
+{%- macro pluralize(value) -%}
+    {% if value != 1 %}s{% endif %}
+{%- endmacro -%}
+
+{%- macro issue_link(issue, title = true, important = true) -%}
+    <a href="{{ issue.url }}" {% if not important %}data-mautrix-exclude-plaintext{% endif %}>
+        {%- if issue.confidential and not changes.confidential %}
+            confidential
+        {% endif %}
+        issue #{{ issue.issue_id -}}
+    </a>
+    {%- if title -%}
+        : {{ issue.title|e -}}
+    {% endif %}
+{%- endmacro -%}
+
+{%- macro merge_request_link(merge_request, title = true, important = true) -%}
+    <a href="{{ merge_request.url }}" {% if not important %}data-mautrix-exclude-plaintext{% endif %}>
+        merge request !{{ merge_request.merge_request_id -}}
+    </a>
+    {%- if title -%}
+        : {{ merge_request.title|e -}}
+    {% endif %}
+{%- endmacro -%}
+
+{%- macro issue_or_merge_link(attrs, title = true, important = true) -%}
+    {%- if attrs.issue_id -%}
+        {{- issue_link(attrs, title, important) -}}
+    {%- elif attrs.merge_request_id -%}
+        {{- merge_request_link(attrs, title, important) -}}
+    {%- else -%}
+        unknown object {{ attrs.title|e }}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro fancy_label(label) -%}
+    <span
+            data-mx-color="{{ label.foreground_color }}"
+            data-mx-bg-color="{{ label.color }}"
+            title="{{ label.description }}"
+    >&nbsp;{{ util.bold_scope(label.title) }}&nbsp;</span>
+{%- endmacro -%}
+
+{%- macro fancy_labels(labels) -%}
+    {% for label in labels %}
+        {{ fancy_label(label) }}
+    {% endfor %}
+{%- endmacro -%}
+
+{%- macro list_changes(added, removed, add_word, remove_word, mutate) -%}
+    {%- if added -%}
+        {{ add_word }} {{ util.join_human_list(added, mutate=mutate) }}
+        {% if not removed %}
+            to
+        {% endif %}
+    {%- endif -%}
+    {%- if removed -%}
+        {%- if added %}
+            and
+        {% endif -%}
+        {{ remove_word }} {{ util.join_human_list(removed, mutate=mutate) }}
+        from
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro label_changes(added, removed) -%}
+    {{ list_changes(added, removed, "added", "removed", fancy_label) }}
+{%- endmacro -%}
+{%- macro assignee_changes(added, removed) -%}
+    {{ list_changes(added, removed, "assigned", "unassigned", user_link) }}
+{%- endmacro -%}
