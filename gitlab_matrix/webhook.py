@@ -69,8 +69,16 @@ class GitlabWebhook:
         except KeyError:
             return Response(text="401: Unauthorized\n"
                                  "Missing auth token header\n", status=401)
+        if token == self.bot.config["secret"]:
+            try:
+                room_id = RoomID(request.query["room"])
+            except KeyError:
+                return Response(text="400: Bad request\nNo room specified. "
+                                     "Did you forget the ?room query parameter?\n",
+                                status=400)
         else:
-            if token != self.bot.config["secret"]:
+            room_id = self.bot.db.get_webhook_room(token)
+            if not room_id:
                 return Response(text="401: Unauthorized\n", status=401)
 
         try:
@@ -78,13 +86,6 @@ class GitlabWebhook:
         except KeyError:
             return Response(text="400: Bad request\n"
                                  "Event type not specified\n", status=400)
-
-        try:
-            room_id = RoomID(request.query["room"])
-        except KeyError:
-            return Response(text="400: Bad request\n"
-                                 "No room specified. Did you forget the ?room query parameter?\n",
-                            status=400)
 
         if not request.can_read_body:
             return Response(status=400, text="400: Bad request\n"

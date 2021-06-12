@@ -80,6 +80,13 @@ class MatrixMessage(Base):
     event_id: EventID = Column(String(255), nullable=False)
 
 
+class WebhookToken(Base):
+    __tablename__ = "webhook_token"
+
+    room_id: RoomID = Column(Text, nullable=False)
+    secret: str = Column(Text, primary_key=True)
+
+
 class Database:
     db: Engine
 
@@ -198,4 +205,15 @@ class Database:
         s = self.Session()
         default = s.query(Default).get((mxid,))
         default.gitlab_server = url
+        s.commit()
+
+    def get_webhook_room(self, secret: str) -> Optional[RoomID]:
+        s = self.Session()
+        webhook_token = s.query(WebhookToken).get((secret,))
+        return webhook_token.room_id if webhook_token else None
+
+    def add_webhook_room(self, secret: str, room_id: RoomID) -> None:
+        s = self.Session()
+        webhook_token = WebhookToken(secret=secret, room_id=room_id)
+        s.add(webhook_token)
         s.commit()

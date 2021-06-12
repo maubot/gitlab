@@ -1,4 +1,3 @@
-path: "/webhooks"
 secret: "passwd"
 base_command: "gitlab"
 send_as_notice: true
