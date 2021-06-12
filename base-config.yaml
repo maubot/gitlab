@@ -1,4 +1,4 @@
-secret: "passwd"
+secret: "put a random password here"
 base_command: "gitlab"
 send_as_notice: true
 time_format: "%d.%m.%Y %H:%M:%S %Z"

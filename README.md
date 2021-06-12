@@ -2,27 +2,17 @@
 
 A GitLab client and webhook receiver for maubot.
 
-## Configure plugin
+## Usage
 
 ### Set up the plugin like any other maubot plugin
 
-Upload [the plugin](https://mau.dev/maubot/gitlab/-/pipelines) in Maubot Manager, and then create an instance i.e. an association of a plugin and a client.
+Upload [the plugin](https://mau.dev/maubot/gitlab/-/pipelines) in Maubot Manager,
+and then create an instance (an association of a plugin and a client).
 
-Give this new instance an **ID** / name, for example `my_gitlab_bot`. We will refer to this identifier later as `intance_id`.
+Give this new instance an **ID** / name, for example `my_gitlab_bot`.
+We will refer to this identifier later as `instance_id`.
 
-### Set up Gitlab plugin specificities
-
-Once the instance is created, make sure to at least replace the `secret` with a real password.
-
-For example, you can generate one with:
-
-```sh
-tr -dc A-Za-z0-9 < /dev/urandom | head -c 32
-```
-
-And save the configuration.
-
-## Login to Gitlab account from the bot
+## Logging into your GitLab account
 
 Create a personal access token, as explained in Gitlab's documentation.
 
@@ -48,32 +38,17 @@ Assuming the base command to invoke the bot is `gitlab`, adapt the following com
 !gitlab server login https://gitlab.example.org PERSONAL_ACCESS_TOKEN
 ```
 
-You should now be loggued in your Gitlab account.
+You should now be logged in your Gitlab account. Use `!gitlab` to view the list of commands and `!gitlab <command>` to
+view help for subcommands (e.g. `!gitlab webhook`).
 
-## Further Gitlab client functionalities
+## Setting up webhooks
 
-To access further bot's functionalities from Matrix, invoke the bot with `!gitlab` or `!gitlab <command>` to get some help:
-
-```txt
-Usage: !gitlab <subcommand> [...]
-
-    room <subcommand> [...] - Manage the settings for this room.
-    server <subcommand> [...] - Manage GitLab Servers.
-    alias <subcommand> [...] - Manage Gitlab server aliases.
-    issue <subcommand> [...] - Manage GitLab issues.
-    commit <subcommand> [...] - View GitLab commits.
-    ping - Ping the bot.
-    whoami [server URL or alias] - Check who you're logged in as.
-
-```
-
-## Bind repository events to Matrix room (webhooks)
-
-_Note: You do not need to be logged-in in order to complete this section._
+**The instructions below are for adding webhooks manually. You can also simply use `!gitlab webhook add <repo>`, but
+that requires logging into the bot using your GitLab token first.**
 
 Go to the desired repository's webhooks settings, in Gitlab, under **Your repo** > **Settings** > **Webhooks**.
 
-Configure the **URL** as follow:
+Configure the **URL** as follows:
 
 ```sh
 https://${server_name}/${plugin_base_path}/${instance_id}/${instance_path}?room=${room_id}

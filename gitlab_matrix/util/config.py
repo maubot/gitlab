@@ -14,12 +14,17 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import secrets
+
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 
 class Config(BaseProxyConfig):
     def do_update(self, helper: ConfigUpdateHelper) -> None:
-        helper.copy("secret")
+        if not self["secret"] or self["secret"] == "put a random password here":
+            helper.base["secret"] = secrets.token_urlsafe(32)
+        else:
+            helper.copy("secret")
         helper.copy("base_command")
         helper.copy("send_as_notice")
         helper.copy("time_format")
