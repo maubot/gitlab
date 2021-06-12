@@ -642,7 +642,14 @@ class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
 
     @property
     def event_properties(self) -> Iterable[str]:
-        return "user", "is_new_ref", "is_deleted_ref", "ref_name", "ref_type", "ref_url"
+        return ("user", "is_new_ref", "is_deleted_ref", "ref_name", "ref_type", "ref_url",
+                "diff_url")
+
+    @property
+    def diff_url(self) -> str:
+        before = self.project.default_branch if self.is_new_ref else self.before
+        after = self.after
+        return f"{self.project.web_url}/-/compare/{before}...{after}"
 
     @property
     def is_new_ref(self) -> bool:

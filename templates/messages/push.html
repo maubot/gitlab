@@ -2,19 +2,26 @@
 {% if is_deleted_ref %}
     deleted branch
 {% else %}
-    pushed {{ total_commits_count }} commit{{ pluralize(total_commits_count) }} to
+    pushed
+    <a href="{{ diff_url }}" data-mautrix-exclude-plaintext>
+        {{- total_commits_count }} commit{{ pluralize(total_commits_count) -}}
+    </a>
+    to
 {% endif %}
 <a data-mautrix-exclude-plaintext href="{{ ref_url }}">{{ ref_name }}</a>
 {%- if is_new_ref %} (new branch){% endif -%}
-{%- if commits|length > 0 %}:{% endif -%}
-<ul>
-    {% for commit in commits %}
-        <li>
-            <code><a href="{{ commit.url }}">{{ commit.id[:8] }}</a></code>
-            {{ commit.cut_message }}
-            {% if commit.author.name != user_name %}
-                by {{ commit.author.name }}
-            {% endif %}
-        </li>
-    {% endfor %}
-</ul>
+{%- if commits|length > 0 %}:
+    <ul>
+        {% for commit in commits[-5:] %}
+            <li>
+                <code><a data-mautrix-exclude-plaintext href="{{ commit.url }}">
+                    {{ commit.id[:8] }}
+                </a></code>
+                {{ commit.cut_message }}
+                {% if commit.author.name != user_name %}
+                    by {{ commit.author.name }}
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif -%}
