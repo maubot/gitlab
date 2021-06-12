@@ -35,8 +35,6 @@ from .util import TemplateManager, TemplateUtil
 if TYPE_CHECKING:
     from .bot import GitlabBot
 
-import pprint
-
 spaces = re.compile(" +")
 space = " "
 
@@ -127,8 +125,6 @@ class GitlabWebhook:
                 self.task_list.remove(task)
 
     async def process_hook(self, body: JSON, evt_type: str, room_id: RoomID) -> None:
-        pprint.pprint(body)  # FIXME remove
-
         msgtype = MessageType.NOTICE if self.bot.config["send_as_notice"] else MessageType.TEXT
         evt = EventParse[evt_type].deserialize(body)
 
@@ -178,7 +174,6 @@ class GitlabWebhook:
                 "event_type": evt_type,
                 **subevt.meta,
             }
-            pprint.pprint(content)  # FIXME remove
 
             edit_evt = self.bot.db.get_event(subevt.message_id, room_id)
             if edit_evt:

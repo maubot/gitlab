@@ -24,12 +24,6 @@ from maubot.loader import BasePluginLoader
 
 
 class TemplateUtil:
-    # FIXME remove
-    @staticmethod
-    def debug(msg: str) -> str:
-        print(msg)
-        return "debuggeth"
-
     @staticmethod
     def bold_scope(label: str) -> str:
         try:
