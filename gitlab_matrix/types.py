@@ -19,6 +19,7 @@ from datetime import datetime
 
 from jinja2 import TemplateNotFound
 from attr import dataclass
+from yarl import URL
 import attr
 
 from mautrix.types import JSON, ExtensibleEnum, SerializableAttrs, serializer, deserializer
@@ -145,15 +146,8 @@ class GitlabAuthor(SerializableAttrs['GitlabAuthor']):
 
 
 @dataclass
-class GitlabCommit(SerializableAttrs['GitlabCommit']):
-    id: str
+class BaseCommit:
     message: str
-    timestamp: Optional[datetime] = None
-    url: Optional[str] = None
-    author: Optional[GitlabAuthor] = None
-    added: Optional[List[str]] = None
-    modified: Optional[List[str]] = None
-    removed: Optional[List[str]] = None
 
     @property
     def cut_message(self) -> str:
@@ -170,6 +164,18 @@ class GitlabCommit(SerializableAttrs['GitlabCommit']):
 
 
 @dataclass
+class GitlabCommit(BaseCommit, SerializableAttrs['GitlabCommit']):
+    id: str
+    timestamp: Optional[datetime] = None
+    url: Optional[str] = None
+    author: Optional[GitlabAuthor] = None
+
+    added: Optional[List[str]] = None
+    modified: Optional[List[str]] = None
+    removed: Optional[List[str]] = None
+
+
+@dataclass
 class GitlabRepository(SerializableAttrs['GitlabRepository']):
     name: str
     url: Optional[str] = None
@@ -178,6 +184,10 @@ class GitlabRepository(SerializableAttrs['GitlabRepository']):
     git_http_url: Optional[str] = None
     git_ssh_url: Optional[str] = None
     visibility_level: Optional[int] = None
+
+    @property
+    def path(self) -> str:
+        return URL(self.homepage).path.strip("/")
 
 
 @dataclass
@@ -525,12 +535,50 @@ class GitlabMergeRequest(SerializableAttrs['GitlabMergeRequest']):
     assignee: GitlabUser
 
 
+class BuildStatus(ExtensibleEnum):
+    CREATED = "created"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    @property
+    def color_circle(self) -> str:
+        return _build_status_circles[self]
+
+
+_build_status_circles: Dict[BuildStatus, str] = {
+    BuildStatus.CREATED: "🟡",
+    BuildStatus.RUNNING: "🔵",
+    BuildStatus.SUCCESS: "🟢",
+    BuildStatus.FAILED: "🔴",
+}
+
+
+class FailureReason(ExtensibleEnum):
+    UNKNOWN = "unknown_failure"
+    SCRIPT = "script_failure"
+
+
+@dataclass
+class GitlabJobCommit(BaseCommit, SerializableAttrs['GitlabJobCommit']):
+    author_email: str
+    author_name: str
+    author_url: Optional[str]
+
+    id: int
+    sha: str
+    status: BuildStatus
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    duration: Optional[int]
+
+
 @dataclass
 class GitlabBuild(SerializableAttrs['GitlabBuild']):
     id: int
     stage: str
     name: str
-    status: str
+    status: BuildStatus
     created_at: datetime
     started_at: datetime
     finished_at: datetime
@@ -559,7 +607,7 @@ class GitlabEvent:
         return []
 
     @property
-    def matrix_message_edit_id(self) -> Optional[str]:
+    def message_id(self) -> Optional[str]:
         return None
 
 
@@ -625,6 +673,10 @@ class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
             return f"{self.project.web_url}/-/tags/{self.ref_name}"
         else:
             return None
+
+    @property
+    def message_id(self) -> str:
+        return f"push-{self.checkout_sha}-{self.ref_name}"
 
 
 def split_updates(evt: Union['GitlabIssueEvent', 'GitlabMergeRequestEvent']) -> List[GitlabEvent]:
@@ -756,28 +808,16 @@ class GitlabPipelineEvent(SerializableAttrs['GitlabPipelineEvent'], GitlabEvent)
     builds: List[GitlabBuild]
 
     @property
-    def matrix_message_edit_id(self) -> str:
+    def message_id(self) -> str:
         return f"pipeline-{self.object_attributes.id}"
 
-    # @property
-    # def matrix_message(self) -> str:
-    #     type = "tag" if self.object_attributes.tag else "branch"
-    #     prefix = (f"[{self.project.namespace} / {self.project.name}] "
-    #               f"Pipeline {self.object_attributes.id} on {type} {self.object_attributes.ref}")
-    #
-    #     if self.object_attributes.status == "pending":
-    #         return f"{prefix} pending"
-    #     elif self.object_attributes.status == "running":
-    #         return f"{prefix} started"
-    #
-    #     builds = "\n".join(f"* [{build.name}:{build.stage} ({build.id})]"
-    #                        f"({self.project.web_url}/-/jobs/{build.id}) - {build.status}"
-    #                        for build in self.builds)
-    #
-    #     if self.object_attributes.status == "success":
-    #         return f"{prefix} successfully completed in {self.formatted_duration}\n\n{builds}"
-    #     elif self.object_attributes.status == "failed":
-    #         return f"{prefix} failed in {self.formatted_duration}\n\n{builds}"
+
+@dataclass
+class GitlabRunner(SerializableAttrs['GitlabRunner']):
+    active: bool
+    description: str
+    id: int
+    tags: List[str]
 
 
 @dataclass
@@ -787,39 +827,60 @@ class GitlabJobEvent(SerializableAttrs['GitlabJobEvent'], GitlabEvent):
     tag: str
     before_sha: str
     sha: str
+    pipeline_id: int
     build_id: int
     build_name: str
     build_stage: str
-    build_status: str
+    build_status: BuildStatus
     build_started_at: datetime
     build_finished_at: datetime
     build_duration: int
     build_allow_failure: bool
-    build_failure_reason: str
+    build_failure_reason: FailureReason
     project_id: int
     project_name: str
     user: GitlabUser
-    commit: GitlabCommit
+    commit: GitlabJobCommit
     repository: GitlabRepository
+    runner: Optional[GitlabRunner]
+
+    def preprocess(self) -> List['GitlabJobEvent']:
+        base_url = str(URL(self.repository.homepage).with_path(""))
+        self.user.web_url = f"{base_url}/{self.user.username}"
+        return [self]
 
     @property
-    def matrix_message_edit_id(self) -> str:
-        return f"job-{self.build_id}"
+    def template_name(self) -> str:
+        return "job"
 
-    # @property
-    # def matrix_message(self) -> str:
-    #     prefix = (f"[{self.project_name}] Job [{self.build_name}:{self.build_stage} "
-    #               f"({self.build_id})]({self.repository.homepage}/-/jobs/{self.build_id}) ")
-    #     if self.build_status == "pending":
-    #         return f"{prefix} pending"
-    #     elif self.build_status == "running":
-    #         return f"{prefix} started"
-    #     elif self.build_status == "skipped":
-    #         return f"{prefix} skipped"
-    #     elif self.build_status == "success":
-    #         return f"{prefix} successfully completed in {self.formatted_build_duration}"
-    #     elif self.build_status == "failed":
-    #         return f"{prefix} failed in {self.formatted_build_duration}"
+    @property
+    def push_id(self) -> str:
+        return f"push-{self.sha}-{self.ref}"
+
+    @property
+    def reaction_id(self) -> str:
+        return f"job-{self.sha}-{self.ref}-{self.build_name}"
+
+    @property
+    def meta(self) -> JSON:
+        return {
+            "build": {
+                "pipeline_id": self.pipeline_id,
+                "id": self.build_id,
+                "name": self.build_name,
+                "stage": self.build_stage,
+                "status": self.build_status.value,
+                "url": self.build_url,
+            },
+        }
+
+    @property
+    def event_properties(self) -> Iterable[str]:
+        return "build_url",
+
+    @property
+    def build_url(self) -> str:
+        return f"{self.repository.homepage}/-/jobs/{self.build_id}"
 
 
 GitlabEventType = Union[Type[GitlabPushEvent],
@@ -844,4 +905,6 @@ EventParse: Dict[str, GitlabEventType] = {
 
 OTHER_ENUMS = {
     "NoteableType": NoteableType,
+    "BuildStatus": BuildStatus,
+    "FailureReason": FailureReason,
 }

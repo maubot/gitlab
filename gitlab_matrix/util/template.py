@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Dict, Any, Tuple, Callable, Iterable, List
+from typing import Dict, Any, Tuple, Callable, Iterable, List, Union
 import os.path
 
 from jinja2 import Environment as JinjaEnvironment, Template, BaseLoader, TemplateNotFound
@@ -45,7 +45,7 @@ class TemplateUtil:
         return f"{val} {unit}s"
 
     @classmethod
-    def format_time(cls, seconds: int, enable_days: bool = False) -> str:
+    def format_time(cls, seconds: Union[int, float], enable_days: bool = False) -> str:
         seconds = abs(seconds)
         frac_seconds = round(seconds - int(seconds), 1)
         minutes, seconds = divmod(int(seconds), 60)

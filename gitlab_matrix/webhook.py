@@ -25,11 +25,11 @@ from jinja2 import TemplateNotFound
 from aiohttp.web import Response, Request
 
 from mautrix.types import (EventType, RoomID, StateEvent, Membership, MessageType, JSON,
-                           TextMessageEventContent, Format)
+                           TextMessageEventContent, Format, ReactionEventContent, RelationType)
 from mautrix.util.formatter import parse_html
 from maubot.handlers import web, event
 
-from .types import EventParse, Action, OTHER_ENUMS
+from .types import GitlabJobEvent, EventParse, Action, OTHER_ENUMS
 from .util import TemplateManager, TemplateUtil
 
 if TYPE_CHECKING:
@@ -132,10 +132,17 @@ class GitlabWebhook:
         msgtype = MessageType.NOTICE if self.bot.config["send_as_notice"] else MessageType.TEXT
         evt = EventParse[evt_type].deserialize(body)
 
+        was_manually_handled = True
+        if isinstance(evt, GitlabJobEvent):
+            await self.handle_job_event(evt, evt_type, room_id)
+        else:
+            was_manually_handled = False
+
         try:
             tpl = self.messages[evt.template_name]
-        except TemplateNotFound:
-            self.bot.log.debug(f"Unhandled {evt_type} from GitLab")
+        except TemplateNotFound as e:
+            if not was_manually_handled:
+                self.bot.log.debug(f"Unhandled {evt_type} from GitLab")
             return
 
         aborted = False
@@ -173,12 +180,31 @@ class GitlabWebhook:
             }
             pprint.pprint(content)  # FIXME remove
 
-            edit_evt = self.bot.db.get_event(subevt.matrix_message_edit_id, room_id)
+            edit_evt = self.bot.db.get_event(subevt.message_id, room_id)
             if edit_evt:
                 content.set_edit(edit_evt)
             event_id = await self.bot.client.send_message(room_id, content)
-            if not edit_evt and subevt.matrix_message_edit_id:
-                self.bot.db.put_event(subevt.matrix_message_edit_id, room_id, event_id)
+            if not edit_evt and subevt.message_id:
+                self.bot.db.put_event(subevt.message_id, room_id, event_id)
+
+    async def handle_job_event(self, evt: GitlabJobEvent, evt_type: str, room_id: RoomID) -> None:
+        push_evt = self.bot.db.get_event(evt.push_id, room_id)
+        if not push_evt:
+            return
+        reaction = ReactionEventContent()
+        reaction.relates_to.event_id = push_evt
+        reaction.relates_to.key = f"{evt.build_status.color_circle} {evt.build_name}"
+        reaction.relates_to.rel_type = RelationType.ANNOTATION
+        reaction["xyz.maubot.gitlab.webhook"] = {
+            "event_type": evt_type,
+            **evt.meta,
+        }
+
+        prev_reaction = self.bot.db.get_event(evt.reaction_id, room_id)
+        if prev_reaction:
+            await self.bot.client.redact(room_id, prev_reaction)
+        event_id = await self.bot.client.send_message_event(room_id, EventType.REACTION, reaction)
+        self.bot.db.put_event(evt.reaction_id, room_id, event_id, merge=prev_reaction is not None)
 
     @event.on(EventType.ROOM_MEMBER)
     async def member_handler(self, evt: StateEvent) -> None:

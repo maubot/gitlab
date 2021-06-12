@@ -41,10 +41,9 @@
 {%- endmacro -%}
 
 {%- macro fancy_label(label) -%}
-    <span
-            data-mx-color="{{ label.foreground_color }}"
-            data-mx-bg-color="{{ label.color }}"
-            title="{{ label.description }}"
+    <span data-mx-color="{{ label.foreground_color }}"
+          data-mx-bg-color="{{ label.color }}"
+          title="{{ label.description }}"
     >&nbsp;{{ util.bold_scope(label.title) }}&nbsp;</span>
 {%- endmacro -%}
 

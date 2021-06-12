@@ -95,9 +95,14 @@ class Database:
         event = s.query(MatrixMessage).get((message_id, room_id))
         return event.event_id if event else None
 
-    def put_event(self, message_id: str, room_id: RoomID, event_id: EventID) -> None:
+    def put_event(self, message_id: str, room_id: RoomID, event_id: EventID, merge: bool = False
+                  ) -> None:
         s: Session = self.Session()
-        s.add(MatrixMessage(message_id=message_id, room_id=room_id, event_id=event_id))
+        evt = MatrixMessage(message_id=message_id, room_id=room_id, event_id=event_id)
+        if merge:
+            s.merge(evt)
+        else:
+            s.add(evt)
         s.commit()
 
     def get_default_repo(self, room_id: RoomID) -> DefaultRepoInfo:

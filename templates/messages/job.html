@@ -1,0 +1,9 @@
+{% if build_status == BuildStatus.FAILED %}
+    <strong>[<a data-mautrix-exclude-plaintext href="{{ repository.homepage }}">{{ repository.path|e }}</a>]</strong>
+    <a href="{{ build_url }}">Job {{ build_id }}</a>
+    <strong><font color="#ff000">failed</font></strong>
+    after {{ util.format_time(build_duration) }}
+    (build triggered by {{ user_link(user) }})
+{% else %}
+    {% do abort() %}
+{% endif %}
