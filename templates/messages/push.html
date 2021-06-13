@@ -18,7 +18,7 @@
                     {{ commit.id[:8] }}
                 </a></code>
                 {{ commit.cut_message }}
-                {% if commit.author.name != user_name %}
+                {% if commit.author.name != user_name and commit.author.name != user_username %}
                     by {{ commit.author.name }}
                 {% endif %}
             </li>
