@@ -15,7 +15,7 @@
         {% for commit in commits[-5:] %}
             <li>
                 <code><a data-mautrix-exclude-plaintext href="{{ commit.url }}">
-                    {{ commit.id[:8] }}
+                    {{- commit.id[:8] -}}
                 </a></code>
                 {{ commit.cut_message }}
                 {% if commit.author.name != user_name and commit.author.name != user_username %}
