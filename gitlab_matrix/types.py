@@ -74,7 +74,7 @@ class LabelType(ExtensibleEnum):
 
 @dataclass(frozen=True)
 class GitlabLabel(SerializableAttrs['GitlabLabel']):
-    contrast_threshold: ClassVar[float] = 1.5
+    contrast_threshold: ClassVar[float] = 2.5
     white_rgb: ClassVar[Tuple[int, int, int]] = (1, 1, 1)
     white_hex: ClassVar[str] = "#ffffff"
     black_hex: ClassVar[str] = "#000000"
