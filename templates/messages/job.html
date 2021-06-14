@@ -1,4 +1,4 @@
-{% if build_status == BuildStatus.FAILED %}
+{% if build_status == BuildStatus.FAILED and not build_allow_failure %}
     <strong>[<a data-mautrix-exclude-plaintext href="{{ repository.homepage }}">{{ repository.path|e }}</a>]</strong>
     <a href="{{ build_url }}">Job {{ build_id }}: {{ build_name }}</a>
     <strong><font color="#ff0000">failed</font></strong>
