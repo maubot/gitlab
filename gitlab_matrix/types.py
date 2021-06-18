@@ -684,7 +684,7 @@ class GitlabPushEvent(SerializableAttrs, GitlabEvent):
 
     @property
     def message_id(self) -> str:
-        return f"push-{self.checkout_sha}-{self.ref_name}"
+        return f"push-{self.project_id}-{self.checkout_sha}-{self.ref_name}"
 
 
 def split_updates(evt: Union['GitlabIssueEvent', 'GitlabMergeRequestEvent']) -> List[GitlabEvent]:
@@ -863,11 +863,11 @@ class GitlabJobEvent(SerializableAttrs, GitlabEvent):
 
     @property
     def push_id(self) -> str:
-        return f"push-{self.sha}-{self.ref}"
+        return f"push-{self.project_id}-{self.sha}-{self.ref}"
 
     @property
     def reaction_id(self) -> str:
-        return f"job-{self.sha}-{self.ref}-{self.build_name}"
+        return f"job-{self.project_id}-{self.sha}-{self.ref}-{self.build_name}"
 
     @property
     def meta(self) -> JSON:
