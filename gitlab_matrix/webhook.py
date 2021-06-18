@@ -189,7 +189,10 @@ class GitlabWebhook:
             return
         reaction = ReactionEventContent()
         reaction.relates_to.event_id = push_evt
-        reaction.relates_to.key = f"{evt.build_status.color_circle} {evt.build_name}"
+        try:
+            reaction.relates_to.key = f"{evt.build_status.color_circle} {evt.build_name}"
+        except KeyError:
+            return
         reaction.relates_to.rel_type = RelationType.ANNOTATION
         reaction["xyz.maubot.gitlab.webhook"] = {
             "event_type": evt_type,

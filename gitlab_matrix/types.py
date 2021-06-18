@@ -73,7 +73,7 @@ class LabelType(ExtensibleEnum):
 
 
 @dataclass(frozen=True)
-class GitlabLabel(SerializableAttrs['GitlabLabel']):
+class GitlabLabel(SerializableAttrs):
     contrast_threshold: ClassVar[float] = 2.5
     white_rgb: ClassVar[Tuple[int, int, int]] = (1, 1, 1)
     white_hex: ClassVar[str] = "#ffffff"
@@ -99,7 +99,7 @@ class GitlabLabel(SerializableAttrs['GitlabLabel']):
 
 
 @dataclass
-class GitlabProject(SerializableAttrs['GitlabProject']):
+class GitlabProject(SerializableAttrs):
     id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -122,7 +122,7 @@ class GitlabProject(SerializableAttrs['GitlabProject']):
 
 
 @dataclass(eq=False, hash=False)
-class GitlabUser(SerializableAttrs['GitlabUser']):
+class GitlabUser(SerializableAttrs):
     name: str
     username: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -140,7 +140,7 @@ class GitlabUser(SerializableAttrs['GitlabUser']):
 
 
 @dataclass
-class GitlabAuthor(SerializableAttrs['GitlabAuthor']):
+class GitlabAuthor(SerializableAttrs):
     name: str
     email: str
 
@@ -164,7 +164,7 @@ class BaseCommit:
 
 
 @dataclass
-class GitlabCommit(BaseCommit, SerializableAttrs['GitlabCommit']):
+class GitlabCommit(BaseCommit, SerializableAttrs):
     id: str
     timestamp: Optional[datetime] = None
     url: Optional[str] = None
@@ -176,7 +176,7 @@ class GitlabCommit(BaseCommit, SerializableAttrs['GitlabCommit']):
 
 
 @dataclass
-class GitlabRepository(SerializableAttrs['GitlabRepository']):
+class GitlabRepository(SerializableAttrs):
     name: str
     url: Optional[str] = None
     description: Optional[str] = None
@@ -191,7 +191,7 @@ class GitlabRepository(SerializableAttrs['GitlabRepository']):
 
 
 @dataclass
-class GitlabStDiff(SerializableAttrs['GitlabStDiff']):
+class GitlabStDiff(SerializableAttrs):
     diff: str
     new_path: str
     old_path: str
@@ -203,7 +203,7 @@ class GitlabStDiff(SerializableAttrs['GitlabStDiff']):
 
 
 @dataclass
-class GitlabSource(SerializableAttrs['GitlabSource']):
+class GitlabSource(SerializableAttrs):
     name: str
     namespace: str
 
@@ -240,43 +240,43 @@ class GitlabChangeWrapper:
 
 
 @dataclass
-class GitlabDatetimeChange(SerializableAttrs['GitlabDatetimeChange']):
+class GitlabDatetimeChange(SerializableAttrs):
     previous: Optional[datetime]
     current: datetime
 
 
 @dataclass
-class GitlabAssigneeChanges(GitlabChangeWrapper, SerializableAttrs['GitlabAssigneeChanges']):
+class GitlabAssigneeChanges(GitlabChangeWrapper, SerializableAttrs):
     previous: List[GitlabUser]
     current: List[GitlabUser]
 
 
 @dataclass
-class GitlabLabelChanges(GitlabChangeWrapper, SerializableAttrs['GitlabLabelChanges']):
+class GitlabLabelChanges(GitlabChangeWrapper, SerializableAttrs):
     previous: List[GitlabLabel]
     current: List[GitlabLabel]
 
 
 @dataclass
-class GitlabIntChange(SerializableAttrs['GitlabIntChange']):
+class GitlabIntChange(SerializableAttrs):
     previous: Optional[int]
     current: Optional[int]
 
 
 @dataclass
-class GitlabBoolChange(SerializableAttrs['GitlabBoolChange']):
+class GitlabBoolChange(SerializableAttrs):
     previous: Optional[bool]
     current: Optional[bool]
 
 
 @dataclass
-class GitlabStringChange(SerializableAttrs['GitlabStringChange']):
+class GitlabStringChange(SerializableAttrs):
     previous: Optional[str]
     current: Optional[str]
 
 
 @dataclass
-class GitlabChanges(SerializableAttrs['GitlabChanges']):
+class GitlabChanges(SerializableAttrs):
     created_at: Optional[GitlabDatetimeChange] = None
     updated_at: Optional[GitlabDatetimeChange] = None
     updated_by: Optional[GitlabIntChange] = None
@@ -298,7 +298,7 @@ class GitlabChanges(SerializableAttrs['GitlabChanges']):
 
 
 @dataclass
-class GitlabIssue(SerializableAttrs['GitlabIssue']):
+class GitlabIssue(SerializableAttrs):
     id: int
     issue_id: int = attr.ib(metadata={"json": "iid"})
     title: str
@@ -316,7 +316,7 @@ class GitlabIssue(SerializableAttrs['GitlabIssue']):
 
 
 @dataclass
-class GitlabSnippet(SerializableAttrs['GitlabSnippet']):
+class GitlabSnippet(SerializableAttrs):
     id: int
     title: str
     content: str
@@ -355,7 +355,7 @@ class NoteableType(ExtensibleEnum):
 
 
 @dataclass
-class GitlabIssueAttributes(SerializableAttrs['GitlabIssueAttributes']):
+class GitlabIssueAttributes(SerializableAttrs):
     id: int
     project_id: int
     issue_id: int = attr.ib(metadata={"json": "iid"})
@@ -391,7 +391,7 @@ class GitlabIssueAttributes(SerializableAttrs['GitlabIssueAttributes']):
 
 
 @dataclass
-class GitlabCommentAttributes(SerializableAttrs['GitlabCommentAttributes']):
+class GitlabCommentAttributes(SerializableAttrs):
     id: int
     note: str
     noteable_type: NoteableType
@@ -418,7 +418,7 @@ class GitlabCommentAttributes(SerializableAttrs['GitlabCommentAttributes']):
 
 
 @dataclass
-class GitlabMergeRequestAttributes(SerializableAttrs['GitlabMergeRequestAttributes']):
+class GitlabMergeRequestAttributes(SerializableAttrs):
     id: int
     merge_request_id: int = attr.ib(metadata={"json": "iid"})
     target_branch: str
@@ -461,7 +461,7 @@ class GitlabMergeRequestAttributes(SerializableAttrs['GitlabMergeRequestAttribut
 
 
 @dataclass
-class GitlabWikiPageAttributes(SerializableAttrs['GitlabWikiAttributes']):
+class GitlabWikiPageAttributes(SerializableAttrs):
     title: str
     content: str
     format: str
@@ -472,13 +472,13 @@ class GitlabWikiPageAttributes(SerializableAttrs['GitlabWikiAttributes']):
 
 
 @dataclass
-class GitlabVariable(SerializableAttrs['GitlabVariable']):
+class GitlabVariable(SerializableAttrs):
     key: str
     value: str
 
 
 @dataclass
-class GitlabPipelineAttributes(SerializableAttrs['GitlabPipelineAttributes']):
+class GitlabPipelineAttributes(SerializableAttrs):
     id: int
     ref: str
     tag: bool
@@ -495,13 +495,13 @@ class GitlabPipelineAttributes(SerializableAttrs['GitlabPipelineAttributes']):
 
 
 @dataclass
-class GitlabArtifact(SerializableAttrs['GitlabArtifact']):
+class GitlabArtifact(SerializableAttrs):
     filename: str
     size: int
 
 
 @dataclass
-class GitlabWiki(SerializableAttrs['GitlabWiki']):
+class GitlabWiki(SerializableAttrs):
     web_url: str
     git_ssh_url: str
     git_http_url: str
@@ -510,7 +510,7 @@ class GitlabWiki(SerializableAttrs['GitlabWiki']):
 
 
 @dataclass
-class GitlabMergeRequest(SerializableAttrs['GitlabMergeRequest']):
+class GitlabMergeRequest(SerializableAttrs):
     id: int
     merge_request_id: int = attr.ib(metadata={"json": "iid"})
     target_branch: str
@@ -526,17 +526,18 @@ class GitlabMergeRequest(SerializableAttrs['GitlabMergeRequest']):
     merge_status: str
     target_project_id: int
     description: str
-    position: int
-    locked_at: datetime
     source: GitlabSource
     target: GitlabTarget
     last_commit: GitlabCommit
     work_in_progress: bool
-    assignee: GitlabUser
+    position: Optional[int] = None
+    locked_at: Optional[datetime] = None
+    assignee: Optional[GitlabUser] = None
 
 
 class BuildStatus(ExtensibleEnum):
     CREATED = "created"
+    PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
@@ -560,7 +561,7 @@ class FailureReason(ExtensibleEnum):
 
 
 @dataclass
-class GitlabJobCommit(BaseCommit, SerializableAttrs['GitlabJobCommit']):
+class GitlabJobCommit(BaseCommit, SerializableAttrs):
     author_email: str
     author_name: str
     author_url: Optional[str]
@@ -574,7 +575,7 @@ class GitlabJobCommit(BaseCommit, SerializableAttrs['GitlabJobCommit']):
 
 
 @dataclass
-class GitlabBuild(SerializableAttrs['GitlabBuild']):
+class GitlabBuild(SerializableAttrs):
     id: int
     stage: str
     name: str
@@ -612,7 +613,7 @@ class GitlabEvent:
 
 
 @dataclass
-class GitlabPushEvent(SerializableAttrs['GitlabPushEvent'], GitlabEvent):
+class GitlabPushEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     before: str
     after: str
@@ -698,7 +699,7 @@ def split_updates(evt: Union['GitlabIssueEvent', 'GitlabMergeRequestEvent']) -> 
 
 
 @dataclass
-class GitlabIssueEvent(SerializableAttrs['GitlabIssueEvent'], GitlabEvent):
+class GitlabIssueEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     user: GitlabUser
     project: GitlabProject
@@ -734,7 +735,7 @@ class GitlabIssueEvent(SerializableAttrs['GitlabIssueEvent'], GitlabEvent):
 
 
 @dataclass
-class GitlabCommentEvent(SerializableAttrs['GitlabCommentEvent'], GitlabEvent):
+class GitlabCommentEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     user: GitlabUser
     project_id: int
@@ -756,7 +757,7 @@ class GitlabCommentEvent(SerializableAttrs['GitlabCommentEvent'], GitlabEvent):
 
 
 @dataclass
-class GitlabMergeRequestEvent(SerializableAttrs['GitlabMergeRequestEvent'], GitlabEvent):
+class GitlabMergeRequestEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     user: GitlabUser
     project: GitlabProject
@@ -789,7 +790,7 @@ class GitlabMergeRequestEvent(SerializableAttrs['GitlabMergeRequestEvent'], Gitl
 
 
 @dataclass
-class GitlabWikiPageEvent(SerializableAttrs['GitlabWikiPageEvent'], GitlabEvent):
+class GitlabWikiPageEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     user: GitlabUser
     project: GitlabProject
@@ -806,7 +807,7 @@ class GitlabWikiPageEvent(SerializableAttrs['GitlabWikiPageEvent'], GitlabEvent)
 
 
 @dataclass
-class GitlabPipelineEvent(SerializableAttrs['GitlabPipelineEvent'], GitlabEvent):
+class GitlabPipelineEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     object_attributes: GitlabPipelineAttributes
     user: GitlabUser
@@ -820,7 +821,7 @@ class GitlabPipelineEvent(SerializableAttrs['GitlabPipelineEvent'], GitlabEvent)
 
 
 @dataclass
-class GitlabRunner(SerializableAttrs['GitlabRunner']):
+class GitlabRunner(SerializableAttrs):
     active: bool
     description: str
     id: int
@@ -828,7 +829,7 @@ class GitlabRunner(SerializableAttrs['GitlabRunner']):
 
 
 @dataclass
-class GitlabJobEvent(SerializableAttrs['GitlabJobEvent'], GitlabEvent):
+class GitlabJobEvent(SerializableAttrs, GitlabEvent):
     object_kind: str
     ref: str
     tag: str
