@@ -676,7 +676,7 @@ class GitlabPushEvent(SerializableAttrs, GitlabEvent):
     @property
     def ref_url(self) -> Optional[str]:
         if self.ref.startswith("refs/heads/"):
-            return f"{self.project.web_url}/-/branches/{self.ref_name}"
+            return f"{self.project.web_url}/-/tree/{self.ref_name}"
         elif self.ref.startswith("refs/tags/"):
             return f"{self.project.web_url}/-/tags/{self.ref_name}"
         else:
