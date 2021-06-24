@@ -89,7 +89,7 @@ class GitlabLabel(SerializableAttrs):
     description: str
     type: LabelType
     group_id: Optional[int]
-    remove_on_close: bool
+    remove_on_close: bool = False
 
     @property
     def foreground_color(self) -> str:
@@ -711,7 +711,7 @@ class GitlabIssueEvent(SerializableAttrs, GitlabEvent):
 
     def preprocess(self) -> List['GitlabIssueEvent']:
         users_to_mutate = [self.user]
-        if self.changes.assignees:
+        if self.changes and self.changes.assignees:
             users_to_mutate += self.changes.assignees.previous
             users_to_mutate += self.changes.assignees.current
         if self.assignees:
@@ -768,7 +768,7 @@ class GitlabMergeRequestEvent(SerializableAttrs, GitlabEvent):
 
     def preprocess(self) -> List['GitlabMergeRequestEvent']:
         users_to_mutate = [self.user]
-        if self.changes.assignees:
+        if self.changes and self.changes.assignees:
             users_to_mutate += self.changes.assignees.previous
             users_to_mutate += self.changes.assignees.current
         for user in users_to_mutate:
