@@ -688,6 +688,8 @@ class GitlabPushEvent(SerializableAttrs, GitlabEvent):
 
 
 def split_updates(evt: Union['GitlabIssueEvent', 'GitlabMergeRequestEvent']) -> List[GitlabEvent]:
+    if not evt.changes:
+        return [evt]
     output = []
     # We don't want to handle multiple issue change types in a single Matrix message,
     # so split each change into a separate event.
