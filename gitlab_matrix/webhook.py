@@ -186,6 +186,7 @@ class GitlabWebhook:
     async def handle_job_event(self, evt: GitlabJobEvent, evt_type: str, room_id: RoomID) -> None:
         push_evt = self.bot.db.get_event(evt.push_id, room_id)
         if not push_evt:
+            self.bot.log.debug(f"No message found to react to push {evt.push_id}")
             return
         reaction = ReactionEventContent()
         reaction.relates_to.event_id = push_evt
