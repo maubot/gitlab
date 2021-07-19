@@ -541,6 +541,7 @@ class BuildStatus(ExtensibleEnum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+    CANCELED = "canceled"
 
     @property
     def color_circle(self) -> str:
@@ -552,6 +553,7 @@ _build_status_circles: Dict[BuildStatus, str] = {
     BuildStatus.RUNNING: "🔵",
     BuildStatus.SUCCESS: "🟢",
     BuildStatus.FAILED: "🔴",
+    BuildStatus.CANCELED: "⚫️",
 }
 
 
