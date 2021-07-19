@@ -1,5 +1,5 @@
 {{ templates.repo_sender_prefix }}
-opened {{ issue_link(object_attributes) }}<br/>
+ opened {{ issue_link(object_attributes) }}<br/>
 {% if object_attributes.description %}
     <blockquote>{{ object_attributes.description|markdown }}</blockquote>
 {% endif %}
