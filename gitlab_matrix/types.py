@@ -332,6 +332,7 @@ class GitlabSnippet(SerializableAttrs):
 
 class Action(ExtensibleEnum):
     OPEN = "open"
+    REOPEN = "reopen"
     CLOSE = "close"
     UPDATE = "update"
     CREATE = "create"
