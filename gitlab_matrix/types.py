@@ -354,6 +354,10 @@ class NoteableType(ExtensibleEnum):
     MERGE_REQUEST = "MergeRequest"
 
 
+class CommentType(ExtensibleEnum):
+    DISCUSSION_NOTE = "DiscussionNote"
+
+
 @dataclass
 class GitlabIssueAttributes(SerializableAttrs):
     id: int
@@ -408,6 +412,7 @@ class GitlabCommentAttributes(SerializableAttrs):
     commit_id: Optional[str] = None
     noteable_id: Optional[int] = None
     discussion_id: Optional[str] = None
+    type: Optional[CommentType] = None
 
     system: Optional[bool] = None
     line_code: Optional[str] = None
@@ -918,6 +923,7 @@ EventParse: Dict[str, GitlabEventType] = {
 
 OTHER_ENUMS = {
     "NoteableType": NoteableType,
+    "CommentType": CommentType,
     "BuildStatus": BuildStatus,
     "FailureReason": FailureReason,
 }

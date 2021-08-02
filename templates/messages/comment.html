@@ -1,5 +1,11 @@
 {{ templates.repo_sender_prefix }}
- <a data-mautrix-exclude-plaintext href="{{ object_attributes.url }}">commented</a> on
+ <a data-mautrix-exclude-plaintext href="{{ object_attributes.url }}">
+  {%- if object_attributes.type == CommentType.DISCUSSION_NOTE -%}
+    replied to a thread
+  {%- else -%}
+    commented
+  {%- endif -%}
+</a> on
 {% if issue and object_attributes.noteable_type == NoteableType.ISSUE %}
     {{ issue_link(issue, important=false) }}
 {% elif merge_request and object_attributes.noteable_type == NoteableType.MERGE_REQUEST %}

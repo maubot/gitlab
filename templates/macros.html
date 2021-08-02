@@ -11,9 +11,7 @@
 
 {%- macro issue_link(issue, title = true, important = true) -%}
     <a href="{{ issue.url }}" {% if not important %}data-mautrix-exclude-plaintext{% endif %}>
-        {%- if issue.confidential and (not changes or not changes.confidential) -%}
-            confidential
-        {% endif -%}
+        {%- if issue.confidential and (not changes or not changes.confidential) -%}confidential {% endif -%}
         issue #{{ issue.issue_id -}}
     </a>
     {%- if title -%}
