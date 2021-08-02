@@ -25,11 +25,11 @@ from .base import Command
 
 class CommandWebhook(Command):
     @Command.gitlab.subcommand("webhook", help="Manage GitLab webhooks.")
-    async def issue(self) -> None:
+    async def webhook(self) -> None:
         pass
 
-    @issue.subcommand("add", help="Add a webhook to post updates to this room")
-    @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
+    @webhook.subcommand("add", help="Add a webhook to post updates to this room")
+    @OptUrlAliasArgument("login", "server URL or alias", arg_num=1)
     @OptRepoArgument("repo", "repository")
     @with_gitlab_session
     async def webhook_add(self, evt: MessageEvent, repo: str, gl: Gl) -> None:
