@@ -120,7 +120,7 @@ class TemplateManager:
         self._loader = PluginTemplateLoader(loader, directory)
         self._env = JinjaEnvironment(loader=self._loader, lstrip_blocks=True, trim_blocks=True,
                                      extensions=["jinja2.ext.do"])
-        self._env.filters["markdown"] = markdown.render
+        self._env.filters["markdown"] = lambda message: markdown.render(message, allow_html=True)
 
     def __getitem__(self, item: str) -> Template:
         return self._env.get_template(item)
