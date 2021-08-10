@@ -6,7 +6,7 @@
     created tag
     <a data-mautrix-exclude-plaintext href="{{ ref_url }}">{{ ref_name }}</a>
 {% endif %}
-{%- if message -%}:
+{%- if message and not hide_details -%}:
     <blockquote>
         {{ message | markdown }}
     </blockquote>
