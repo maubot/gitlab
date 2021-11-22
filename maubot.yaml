@@ -1,6 +1,6 @@
 maubot: 0.1.2
 id: xyz.maubot.gitlab
-version: 0.1.1
+version: 0.2.0
 license: AGPL-3.0-or-later
 modules:
 - gitlab_matrix
@@ -18,3 +18,4 @@ soft_dependencies:
 
 webapp: true
 database: true
+config: true
