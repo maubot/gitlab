@@ -15,6 +15,7 @@ build:
   artifacts:
     paths:
     - "*.mbp"
+    expire_in: 365 days
 
 build tags:
   stage: build
@@ -25,3 +26,4 @@ build tags:
   artifacts:
     paths:
     - "*.mbp"
+    expire_in: never
