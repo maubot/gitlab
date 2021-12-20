@@ -63,7 +63,7 @@ Where
 
 Which gives for example, with the default configuration: <https://maubot.example.org/_matrix/maubot/plugin/my_gitlab_bot/webhooks?room=!XXXXXXXXXXXX>.
 
-Then configure the `secret` token as previously defined.
+As `secret`, set the token shown in Maubot's **Instances** > **my_gitlab_bot** > **secret:**
 
 Afterwhile, configure the desired permissions, [enable SSL verification if needed](https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#ssl-verification) and create the webhook.
 
