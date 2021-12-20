@@ -51,7 +51,7 @@ Go to the desired repository's webhooks settings, in Gitlab, under **Your repo**
 Configure the **URL** as follows:
 
 ```sh
-https://${server_name}/${plugin_base_path}/${instance_id}/${instance_path}?room=${room_id}
+https://${server_name}/${plugin_base_path}/${instance_id}/webhooks?room=${room_id}
 ```
 
 Where
@@ -59,7 +59,6 @@ Where
 - `${server_name}` is an ip address or domain name where your Maubot instance is reachable
 - `${base_path}` is the base path for plugin endpoint as configured under `server.plugin_base_path` in `config.yaml`
 - `${instance_id}` is the identifier you previously defined while setting up the plugin instance, here `my_gitlab_bot`
-- `${instance_path}` is the `path` defined in **Maubot Manager** > **Instances** > `my_gitlab_bot` > `path`
 - `${room_id}` is the Matrix room identifier as defined in its URL, or under **Room Settings** > **Advanced** > **Internal room identifier**
 
 Which gives for example, with the default configuration: <https://maubot.example.org/_matrix/maubot/plugin/my_gitlab_bot/webhooks?room=!XXXXXXXXXXXX>.
