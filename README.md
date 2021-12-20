@@ -59,7 +59,7 @@ Where
 - `${server_name}` is an ip address or domain name where your Maubot instance is reachable
 - `${base_path}` is the base path for plugin endpoint as configured under `server.plugin_base_path` in `config.yaml`
 - `${instance_id}` is the identifier you previously defined while setting up the plugin instance, here `my_gitlab_bot`
-- `${room_id}` is the Matrix room identifier as defined in its URL, or under **Room Settings** > **Advanced** > **Internal room identifier**
+- `${room_id}` is the Matrix room identifier as defined in its URL (or, if you're using the Element client) under **Room Settings** > **Advanced** > **Internal room identifier**. Make sure to use a room where the Gitlab bot is invited, otherwise the webhook will fail with an HTTP 403 error.
 
 Which gives for example, with the default configuration: <https://maubot.example.org/_matrix/maubot/plugin/my_gitlab_bot/webhooks?room=!XXXXXXXXXXXX>.
 
