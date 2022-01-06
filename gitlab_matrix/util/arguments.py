@@ -37,7 +37,7 @@ class OptUrlAliasArgument(Argument):
         if (len(vals) > self.arg_num
                 and (vals[0] in instance.bot.db.get_servers(evt.sender)
                      or vals[0] in instance.bot.db.get_aliases(evt.sender))):
-            return " ".join(vals[1:]), instance.bot.db.get_login(evt.sender, url_alias=val[0])
+            return " ".join(vals[1:]), instance.bot.db.get_login(evt.sender, url_alias=vals[0])
         return val, instance.bot.db.get_login(evt.sender)
 
 
