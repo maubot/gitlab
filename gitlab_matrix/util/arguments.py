@@ -43,16 +43,18 @@ class OptUrlAliasArgument(Argument):
 
 class OptRepoArgument(Argument):
     def __init__(self, name: str, label: str = None, required: bool = False) -> None:
-        super().__init__(name, label=label, required=required)
+        super().__init__(name, label=label, required=required, pass_raw=True)
 
     def match(self, val: str, evt: MessageEvent, instance: 'Command', **kwargs
               ) -> Tuple[str, Any]:
-        repo = re.split(r"\s", val, 1)[0]
+        repo, *rest = re.split(r"\s+", val, 1)
+        rest = rest[0] if len(rest) > 0 else ""
 
         default_repo = instance.bot.db.get_default_repo(evt.room_id)
-        if not default_repo or re.fullmatch(r"\w+/[\w/]+", repo):
-            return val[len(repo):], repo
-        return val, default_repo
+        if not default_repo or re.fullmatch(r"\w+/[\w\-./]+", repo):
+            return rest[0], repo
+        # TODO use default_repo.server somehow after multi-server stuff is fixed
+        return val, default_repo.repo
 
 
 def optional_int(val: str) -> Optional[int]:

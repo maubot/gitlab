@@ -59,7 +59,7 @@ class CommandIssue(Command):
         await evt.reply(f"Commented on issue #{issue.iid}: {issue.title}")
 
     @issue.subcommand("comments", aliases=("read-comments",),
-                      help="Write a comment on an issue.")
+                      help="Read comments on an issue.")
     @OptUrlAliasArgument("login", "server URL or alias", arg_num=2)
     @OptRepoArgument("repo", "repository")
     @command.argument("id", "issue ID", parser=sigil_int)
