@@ -170,7 +170,7 @@ class GitlabWebhook:
             html = spaces.sub(space, html.strip())
 
             content = TextMessageEventContent(msgtype=msgtype, format=Format.HTML,
-                                              formatted_body=html, body=parse_html(html))
+                                              formatted_body=html, body=await parse_html(html))
             content["xyz.maubot.gitlab.webhook"] = {
                 "event_type": evt_type,
                 **subevt.meta,
