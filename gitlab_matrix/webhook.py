@@ -175,6 +175,7 @@ class GitlabWebhook:
                 "event_type": evt_type,
                 **subevt.meta,
             }
+            content["com.beeper.linkpreviews"] = []
 
             edit_evt = self.bot.db.get_event(subevt.message_id, room_id)
             if edit_evt:
