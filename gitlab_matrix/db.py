@@ -159,7 +159,7 @@ class Database:
         else:
             row = (s.query(Token)
                    .join(Default, Default.user_id == Token.user_id)
-                   .filter(Token.user_id == mxid).one())
+                   .filter(Token.user_id == mxid).first())
         return AuthInfo(server=row.gitlab_server, api_token=row.api_token)
 
     def get_login_by_server(self, mxid: UserID, url: str) -> AuthInfo:
