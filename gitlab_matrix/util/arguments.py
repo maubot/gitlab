@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import Tuple, Any, Optional, Union, TYPE_CHECKING
+from typing import Tuple, Any, Optional, TYPE_CHECKING
 import re
 
 from maubot import MessageEvent
@@ -22,7 +22,6 @@ from maubot.handlers.command import Argument
 
 if TYPE_CHECKING:
     from ..commands import Command
-    from ..db import DefaultRepoInfo
 
 
 class OptUrlAliasArgument(Argument):
@@ -47,14 +46,14 @@ class OptRepoArgument(Argument):
         super().__init__(name, label=label, required=required, pass_raw=True)
 
     def match(self, val: str, evt: MessageEvent, instance: 'Command', **kwargs
-              ) -> Tuple[str, Union[str, 'DefaultRepoInfo']]:
+              ) -> Tuple[str, Any]:
         repo, *rest = re.split(r"\s+", val, 1)
         rest = rest[0] if len(rest) > 0 else ""
 
         default_repo = instance.bot.db.get_default_repo(evt.room_id)
         if not default_repo or re.fullmatch(r"\w+/[\w\-./]+", repo):
             return rest, repo
-        return val, default_repo
+        return val, default_repo.repo
 
 
 def optional_int(val: str) -> Optional[int]:
