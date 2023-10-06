@@ -12,6 +12,9 @@
 {% elif changes.assignees %}
     {{ assignee_changes(changes.assignees.added, changes.assignees.removed) }}
     {{ issue_or_merge_link(object_attributes) }}
+{% elif changes.reviewers %}
+    {{ reviewers_changes(changes.reviewers.added, changes.reviewers.removed) }}
+    {{ issue_or_merge_link(object_attributes) }}
 {% elif changes.time_estimate %}
     {% if not changes.time_estimate.current %}
         removed the time estimate of {{ issue_or_merge_link(object_attributes) }}
