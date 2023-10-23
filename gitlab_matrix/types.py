@@ -89,6 +89,7 @@ class GitlabLabel(SerializableAttrs):
     description: str
     type: LabelType
     group_id: Optional[int]
+    lock_on_merge: Optional[bool]
     remove_on_close: bool = False
 
     @property
