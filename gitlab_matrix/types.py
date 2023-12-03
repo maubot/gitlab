@@ -90,6 +90,7 @@ class GitlabLabel(SerializableAttrs):
     type: LabelType
     group_id: Optional[int]
     remove_on_close: bool = False
+    lock_on_merge: bool = False
 
     @property
     def foreground_color(self) -> str:
