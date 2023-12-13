@@ -32,12 +32,12 @@ class CommandServer(Command):
     @server.subcommand("default", aliases=("d",), help="Change your default GitLab server.")
     @command.argument("url", "server URL")
     async def server_default(self, evt: MessageEvent, url: str) -> None:
-        self.bot.db.change_default(evt.sender, url)
+        await self.bot.db.change_default(evt.sender, url)
         await evt.reply(f"Changed the default server to {url}")
 
     @server.subcommand("list", aliases=("ls",), help="Show your GitLab servers.")
     async def server_list(self, evt: MessageEvent) -> None:
-        servers = self.bot.db.get_servers(evt.sender)
+        servers = await self.bot.db.get_servers(evt.sender)
         if not servers:
             await evt.reply("You are not logged in to any server.")
             return
@@ -60,13 +60,13 @@ class CommandServer(Command):
                              exc_info=True)
             await evt.reply(f"GitLab login failed: {e}")
             return
-        self.bot.db.add_login(evt.sender, url, token)
+        await self.bot.db.add_login(evt.sender, url, token)
         await evt.reply(f"Successfully logged into GitLab at {url} as {gl.user.name}")
 
     @server.subcommand("logout", help="Remove the access token from the bot's database.")
     @command.argument("url", "server URL")
     async def server_logout(self, evt: MessageEvent, url: str) -> None:
-        self.bot.db.rm_login(evt.sender, url)
+        await self.bot.db.rm_login(evt.sender, url)
         await evt.reply(f"Removed {url} from the database.")
 
     @Command.gitlab.subcommand("ping", aliases=("p",), help="Ping the bot.")
