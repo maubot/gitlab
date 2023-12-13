@@ -37,10 +37,11 @@ def with_gitlab_session(func: Decoratable) -> Decorator:
         try:
             repo: Any = kwargs["repo"]
             if isinstance(repo, DefaultRepoInfo):
-                if repo.server not in self.bot.db.get_servers(evt.sender):
+                servers = await self.bot.db.get_servers(evt.sender)
+                if repo.server not in servers:
                     await evt.reply(f"You're not logged into {repo.server}")
                     return
-                login = self.bot.db.get_login(evt.sender, url_alias=repo.server)
+                login = await self.bot.db.get_login(evt.sender, url_alias=repo.server)
                 kwargs["repo"] = repo.repo
         except KeyError:
             pass
