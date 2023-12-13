@@ -29,7 +29,7 @@ from mautrix.types import (EventType, RoomID, StateEvent, Membership, MessageTyp
 from mautrix.util.formatter import parse_html
 from maubot.handlers import web, event
 
-from .types import GitlabJobEvent, EventParse, Action, OTHER_ENUMS
+from .types import GitlabJobEvent, EventParse, Action, BuildStatus, OTHER_ENUMS
 from .util import TemplateManager, TemplateUtil
 
 if TYPE_CHECKING:
@@ -131,6 +131,9 @@ class GitlabWebhook:
 
         was_manually_handled = True
         if isinstance(evt, GitlabJobEvent):
+            if self.bot.config["notify_only_on_failure"] and evt.build_status != BuildStatus.FAILED:
+                return
+
             await self.handle_job_event(evt, evt_type, room_id)
         else:
             was_manually_handled = False

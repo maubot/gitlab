@@ -15,11 +15,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import secrets
+import os
+from typing import Any
 
 from mautrix.util.config import BaseProxyConfig, ConfigUpdateHelper
 
 
 class Config(BaseProxyConfig):
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return os.environ[f"MAUBOT_GITLAB_{key.replace('.', '_').upper()}"]
+        except KeyError:
+            return super().__getitem__(key)
+
     def do_update(self, helper: ConfigUpdateHelper) -> None:
         if not self["secret"] or self["secret"] == "put a random password here":
             helper.base["secret"] = secrets.token_urlsafe(32)
@@ -28,3 +36,4 @@ class Config(BaseProxyConfig):
         helper.copy("base_command")
         helper.copy("send_as_notice")
         helper.copy("time_format")
+        helper.copy("notify_only_on_failure")
