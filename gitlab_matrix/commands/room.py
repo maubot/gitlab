@@ -48,5 +48,5 @@ class CommandRoom(Command):
                 await evt.reply(f"Couldn't find {repo} on {gl.url}")
                 return
             raise
-        self.bot.db.set_default_repo(evt.room_id, gl.url, repo)
+        await self.bot.db.set_default_repo(evt.room_id, gl.url, repo)
         await evt.reply(f"Changed the default repo to {repo} on {gl.url}")

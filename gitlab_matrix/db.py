@@ -1,6 +1,7 @@
 # gitlab - A GitLab client and webhook receiver for maubot
 # Copyright (C) 2019 Lorenz Steinert
 # Copyright (C) 2019 Tulir Asokan
+# Copyright (C) 2023 Thomas Ieong
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -17,203 +18,176 @@
 from typing import List, NamedTuple, Optional
 import logging as log
 
-from sqlalchemy import Column, String, Text, ForeignKeyConstraint, or_, ForeignKey
-from sqlalchemy.orm import sessionmaker, relationship, Session
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from sqlalchemy.engine.base import Engine
-from sqlalchemy.ext.declarative import declarative_base
-
 from mautrix.types import UserID, EventID, RoomID
+from mautrix.util.async_db import Database
 
 AuthInfo = NamedTuple('AuthInfo', server=str, api_token=str)
 AliasInfo = NamedTuple('AliasInfo', server=str, alias=str)
 DefaultRepoInfo = NamedTuple('DefaultRepoInfo', server=str, repo=str)
-Base = declarative_base()
 
 
-class Token(Base):
-    __tablename__ = "token"
+class DBManager:
+    db: Database
 
-    user_id: UserID = Column(String(255), primary_key=True, nullable=False)
-    gitlab_server = Column(Text, primary_key=True, nullable=False)
-    api_token = Column(Text, nullable=False)
-    aliases = relationship("Alias", back_populates="token",
-                           cascade="all, delete-orphan")
-    default = relationship("Default", back_populates="token",
-                           cascade="all, delete-orphan",
-                           primaryjoin="Token.user_id==Default.user_id")
-
-
-class Alias(Base):
-    __tablename__ = "alias"
-
-    user_id: UserID = Column(String(255), primary_key=True)
-    gitlab_server = Column(Text, primary_key=True)
-    alias = Column(Text, primary_key=True, nullable=False)
-    __table_args__ = (ForeignKeyConstraint((user_id, gitlab_server),
-                                           (Token.user_id, Token.gitlab_server)),)
-    token = relationship("Token", back_populates="aliases")
-
-
-class Default(Base):
-    __tablename__ = "default"
-
-    user_id: UserID = Column(String(255), ForeignKey("token.user_id"), primary_key=True)
-    gitlab_server = Column(Text, ForeignKey("token.gitlab_server"))
-    token = relationship("Token", back_populates="default",
-                         primaryjoin="Token.user_id==Default.user_id")
-
-
-class DefaultRepo(Base):
-    __tablename__ = "default_repo"
-
-    room_id: RoomID = Column(String(255), primary_key=True)
-    server: str = Column(String(255), nullable=False)
-    repo: str = Column(String(255), nullable=False)
-
-
-class MatrixMessage(Base):
-    __tablename__ = "matrix_message"
-
-    message_id: str = Column(String(255), primary_key=True)
-    room_id: RoomID = Column(String(255), primary_key=True)
-    event_id: EventID = Column(String(255), nullable=False)
-
-
-class WebhookToken(Base):
-    __tablename__ = "webhook_token"
-
-    room_id: RoomID = Column(Text, nullable=False)
-    secret: str = Column(Text, primary_key=True)
-
-
-class Database:
-    db: Engine
-
-    def __init__(self, db: Engine) -> None:
+    def __init__(self, db: Database) -> None:
         self.db = db
-        Base.metadata.create_all(db)
-        self.Session = sessionmaker(bind=self.db)
 
-    def get_event(self, message_id: str, room_id: RoomID) -> Optional[EventID]:
+    async def get_event(self, message_id: str, room_id: RoomID) -> Optional[EventID]:
         if not message_id:
             return None
-        s: Session = self.Session()
-        event = s.query(MatrixMessage).get((message_id, room_id))
-        return event.event_id if event else None
+        q = (
+            "SELECT message_id, room_id, event_id FROM matrix_message "
+            "WHERE message_id = $1 AND room_id = $2"
+        )
+        event = await self.db.fetchrow(q, message_id, room_id)
+        return event["event_id"] if event else None
 
-    def put_event(self, message_id: str, room_id: RoomID, event_id: EventID, merge: bool = False
-                  ) -> None:
-        s: Session = self.Session()
-        evt = MatrixMessage(message_id=message_id, room_id=room_id, event_id=event_id)
-        if merge:
-            s.merge(evt)
-        else:
-            s.add(evt)
-        s.commit()
+    async def put_event(
+            self,
+            message_id: str,
+            room_id: RoomID,
+            event_id: EventID,
+    ) -> None:
+            q = (
+                "INSERT INTO matrix_message (message_id, room_id, event_id) VALUES ($1, $2, $3) "
+                "ON CONFLICT (message_id, room_id) DO UPDATE "
+                "SET event_id = excluded.event_id"
+            )
+            await self.db.execute(q, message_id, room_id, event_id)
 
-    def get_default_repo(self, room_id: RoomID) -> DefaultRepoInfo:
-        s: Session = self.Session()
-        default = s.query(DefaultRepo).get((room_id,))
-        return DefaultRepoInfo(default.server, default.repo) if default else None
+    async def get_default_repo(self, room_id: RoomID) -> DefaultRepoInfo:
+        q = "SELECT room_id, server, repo FROM default_repo WHERE room_id = $1"
+        default = await self.db.fetchrow(q, room_id)
+        return DefaultRepoInfo(default["server"], default["repo"]) if default else None
 
-    def set_default_repo(self, room_id: RoomID, server: str, repo: str) -> None:
-        s: Session = self.Session()
-        s.merge(DefaultRepo(room_id=room_id, server=server, repo=repo))
-        s.commit()
+    async def set_default_repo(self, room_id: RoomID, server: str, repo: str) -> None:
+        q = (
+            "INSERT INTO default_repo (room_id, server, repo) "
+            "VALUES ($1, $2, $3) "
+            "ON CONFLICT (room_id) DO UPDATE "
+            "SET server = excluded.server, repo = excluded.repo"
+        )
+        await self.db.execute(q, room_id, server, repo)
 
-    def get_servers(self, mxid: UserID) -> List[str]:
-        s = self.Session()
-        rows = s.query(Token).filter(Token.user_id == mxid)
-        return [row.gitlab_server for row in rows]
+    async def get_servers(self, mxid: UserID) -> List[str]:
+        q = "SELECT user_id, gitlab_server, api_token FROM token WHERE user_id = $1"
+        rows = await self.db.fetch(q, mxid)
+        return [row["gitlab_server"] for row in rows]
 
-    def add_login(self, mxid: UserID, url: str, token: str) -> None:
-        token_row = Token(user_id=mxid, gitlab_server=url, api_token=token)
-        default = Default(user_id=mxid, gitlab_server=url)
-        s = self.Session()
-        try:
-            s.add(token_row)
-            s.query(Default).filter(Default.user_id == mxid).one()
-        except NoResultFound:
-            s.add(default)
-        except MultipleResultsFound as e:
+    async def add_login(self, mxid: UserID, url: str, token: str) -> None:
+        token_query = (
+            "INSERT INTO token (user_id, gitlab_server, api_token) "
+            "VALUES ($1, $2, $3)"
+        )
+        await self.db.execute(token_query, mxid, url, token)
+
+        default_query = (
+            "SELECT user_id, gitlab_server FROM 'default' "
+            "WHERE user_id = $1"
+        )
+        result = await self.db.fetch(default_query, mxid)
+
+        if len(result) > 1:
             log.warning("Multiple default servers found.")
-            log.warning(e)
-            raise e
-        s.commit()
 
-    def rm_login(self, mxid: UserID, url: str) -> None:
-        s = self.Session()
-        token = s.query(Token).get((mxid, url))
-        s.delete(token)
-        s.commit()
+        if not result:
+            q = (
+                "INSERT INTO 'default' (user_id, gitlab_server) "
+                "VALUES ($1, $2)"
+            )
+            await self.db.execute(q, mxid, url)
 
-    def get_login(self, mxid: UserID, url_alias: str = None) -> AuthInfo:
-        s = self.Session()
+    async def rm_login(self, mxid: UserID, url: str) -> None:
+        q = "DELETE FROM token WHERE user_id = $1 AND gitlab_server = $2"
+        await self.db.execute(q, mxid, url)
+
+    async def get_login(self, mxid: UserID, url_alias: str = None) -> AuthInfo:
         if url_alias:
-            row = (s.query(Token)
-                   .join(Alias)
-                   .filter(Token.user_id == mxid,
-                           or_(Token.gitlab_server == url_alias,
-                               Alias.alias == url_alias)).one())
+            q = (
+                "SELECT user_id, gitlab_server, api_token FROM token "
+                "JOIN alias ON token.user_id = alias.user_id "
+                "AND token.gitlab_server = alias.gitlab_server "
+                "WHERE token.user_id = $1 AND ( token.gitlab_server = $2 OR alias.alias = $2 )"
+            )
+            row = await self.db.fetchrow(q, mxid, url_alias)
         else:
-            row = (s.query(Token)
-                   .join(Default, Default.user_id == Token.user_id)
-                   .filter(Token.user_id == mxid).first())
-        return AuthInfo(server=row.gitlab_server, api_token=row.api_token)
+            q = (
+                "SELECT user_id, gitlab_server, api_token FROM token "
+                "JOIN 'default' ON token.user_id = 'default'.user_id "
+                "AND token.gitlab_server = 'default'.gitlab_server "
+                "WHERE token.user_id = $1"
+            )
+            row = await self.db.fetchrow(q, mxid)
+        return AuthInfo(server=row["gitlab_server"], api_token=row["api_token"])
 
-    def get_login_by_server(self, mxid: UserID, url: str) -> AuthInfo:
-        s = self.Session()
-        row = s.query(Token).get((mxid, url))
-        return AuthInfo(server=row.gitlab_server, api_token=row.api_token)
+    async def get_login_by_server(self, mxid: UserID, url: str) -> AuthInfo:
+        q = (
+            "SELECT user_id, gitlab_server, api_token FROM token "
+            "WHERE user_id = $1 AND gitlab_server = $2"
+        )
+        row = await self.db.fetchrow(q, mxid, url)
+        return AuthInfo(server=row["gitlab_server"], api_token=row["api_token"])
 
-    def get_login_by_alias(self, mxid: UserID, alias: str) -> AuthInfo:
-        s = self.Session()
-        row = s.query(Token).join(Alias).filter(Token.user_id == mxid,
-                                                Alias.alias == alias).one()
-        return AuthInfo(server=row.gitlab_server, api_token=row.api_token)
+    async def get_login_by_alias(self, mxid: UserID, alias: str) -> AuthInfo:
+        q = (
+            "SELECT user_id, gitlab_server, api_token FROM token "
+            "JOIN alias ON "
+            "token.user_id = alias.user_id AND token.gitlab_server = alias.gitlab_server "
+            "WHERE token.user_id = $1 AND alias.alias = $2"
+        )
+        row = await self.db.fetchrow(q, mxid, alias)
+        return AuthInfo(server=row["gitlab_server"], api_token=row["api_token"])
 
-    def add_alias(self, mxid: UserID, url: str, alias: str) -> None:
-        s = self.Session()
-        alias = Alias(user_id=mxid, gitlab_server=url, alias=alias)
-        s.add(alias)
-        s.commit()
+    async def add_alias(self, mxid: UserID, url: str, alias: str) -> None:
+        q = "INSERT INTO alias (user_id, gitlab_server, alias) VALUES ($1, $2, $3)"
+        await self.db.execute(q, mxid, url, alias)
 
-    def rm_alias(self, mxid: UserID, alias: str) -> None:
-        s = self.Session()
-        alias = s.query(Alias).filter(Alias.user_id == mxid,
-                                      Alias.alias == alias).one()
-        s.delete(alias)
-        s.commit()
+    async def rm_alias(self, mxid: UserID, alias: str) -> None:
+        q = "DELETE FROM alias WHERE user_id = $1 AND alias = $2"
+        await self.db.execute(q, mxid, alias)
 
-    def has_alias(self, user_id: UserID, alias: str) -> bool:
-        s: Session = self.Session()
-        return s.query(Alias).filter(Alias.user_id == user_id, Alias.alias == alias).count() > 0
+    async def has_alias(self, user_id: UserID, alias: str) -> bool:
+        q = (
+            "SELECT user_id, gitlab_server, alias FROM alias "
+            "WHERE user_id = $1 AND alias = $2"
+        )
+        rows = await self.db.fetch(q, user_id, alias)
+        return len(rows) > 0
 
-    def get_aliases(self, user_id: UserID) -> List[AliasInfo]:
-        s = self.Session()
-        rows = s.query(Alias).filter(Alias.user_id == user_id)
-        return [AliasInfo(row.gitlab_server, row.alias) for row in rows]
+    async def get_aliases(self, user_id: UserID) -> List[AliasInfo]:
+        q = (
+            "SELECT user_id, gitlab_server, alias FROM alias "
+            "WHERE user_id = $1"
+        )
+        rows = await self.db.fetch(q, user_id)
+        return [AliasInfo(row["gitlab_server"], row["alias"]) for row in rows]
 
-    def get_aliases_per_server(self, user_id: UserID, url: str) -> List[AliasInfo]:
-        s = self.Session()
-        rows = s.query(Alias).filter(Alias.user_id == user_id,
-                                     Alias.gitlab_server == url)
-        return [AliasInfo(row.gitlab_server, row.alias) for row in rows]
+    async def get_aliases_per_server(self, user_id: UserID, url: str) -> List[AliasInfo]:
+        q = (
+            "SELECT user_id, gitlab_server, alias FROM alias "
+            "WHERE user_id = $1 AND gitlab_server = $2"
+        )
+        rows = await self.db.fetch(q, user_id, url)
+        return [AliasInfo(row["gitlab_server"], row["alias"]) for row in rows]
 
-    def change_default(self, mxid: UserID, url: str) -> None:
-        s = self.Session()
-        default = s.query(Default).get((mxid,))
-        default.gitlab_server = url
-        s.commit()
+    async def change_default(self, mxid: UserID, url: str) -> None:
+        q = (
+            "SELECT user_id, gitlab_server FROM 'default' "
+            "WHERE user_id = $1"
+        )
+        default = await self.db.fetchrow(q, mxid)
+        if default:
+            q = (
+                "UPDATE 'default' SET gitlab_server = $2 "
+                "WHERE user_id = $1"
+            )
+            await self.db.execute(q, mxid, url)
 
-    def get_webhook_room(self, secret: str) -> Optional[RoomID]:
-        s = self.Session()
-        webhook_token = s.query(WebhookToken).get((secret,))
-        return webhook_token.room_id if webhook_token else None
+    async def get_webhook_room(self, secret: str) -> Optional[RoomID]:
+        q = "SELECT room_id, secret FROM webhook_token WHERE secret = $1"
+        webhook_token = await self.db.fetchrow(q, secret)
+        return webhook_token["room_id"] if webhook_token else None
 
-    def add_webhook_room(self, secret: str, room_id: RoomID) -> None:
-        s = self.Session()
-        webhook_token = WebhookToken(secret=secret, room_id=room_id)
-        s.add(webhook_token)
-        s.commit()
+    async def add_webhook_room(self, secret: str, room_id: RoomID) -> None:
+        q = "INSERT INTO webhook_token (room_id, secret) VALUES ($1, $2)"
+        await self.db.execute(q, room_id, secret)
