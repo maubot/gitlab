@@ -1,10 +1,12 @@
 {{ templates.repo_sender_prefix }}
 {% if action == OPEN %}
     opened {{ merge_request_link(object_attributes) }}
-    {% if object_attributes.description %}
-        <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+    {% if not hide_details %}
+        {% if object_attributes.description %}
+            <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+        {% endif %}
+        {{ fancy_labels(labels) }}
     {% endif %}
-    {{ fancy_labels(labels) }}
 {% else %}
     {{ object_attributes.action.past_tense }}
     {{ merge_request_link(object_attributes) }}

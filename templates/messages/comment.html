@@ -14,7 +14,9 @@
     {# unsupported comment target #}
     {% do abort() %}
 {% endif %}
-<br/>
-{% if object_attributes.description %}
-    <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+{% if not hide_details %}
+    <br/>
+    {% if object_attributes.description %}
+        <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+    {% endif %}
 {% endif %}

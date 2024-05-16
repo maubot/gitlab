@@ -153,6 +153,7 @@ class GitlabWebhook:
             **OTHER_ENUMS,
             "abort": abort,
             "util": TemplateUtil,
+            "hide_details": True,
         }
 
         for subevt in evt.preprocess():

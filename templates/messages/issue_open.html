@@ -1,6 +1,9 @@
 {{ templates.repo_sender_prefix }}
- opened {{ issue_link(object_attributes) }}<br/>
-{% if object_attributes.description %}
-    <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+ opened {{ issue_link(object_attributes) }}
+{% if not hide_details %}
+    <br/>
+    {% if object_attributes.description %}
+        <blockquote>{{ object_attributes.description|markdown }}</blockquote>
+    {% endif %}
+    {{ fancy_labels(object_attributes.labels) }}
 {% endif %}
-{{ fancy_labels(object_attributes.labels) }}
