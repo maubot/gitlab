@@ -947,33 +947,24 @@ def is_userid_in_event(evt: GitlabEventType, userid:int|None):
     inside = False
     if hasattr(evt, 'user') and isinstance(evt.user, GitlabUser):
         if evt.user.id is not None and evt.user.id == userid:   
-            print("user id. Direct user")
             inside = True
     if isinstance(evt, (GitlabIssueEvent)) and evt.assignees is not None:
         if any(user.id == userid for user in evt.assignees):
-            print("user id. GitlabIssueEvent assignees")
             inside =True
     if isinstance(evt, (GitlabPushEvent)) and evt.user_id is not None and evt.user_id == userid:
-        print("userid . GitlabPushEvent ")
         inside =True
     if isinstance(evt, (GitlabCommentEvent)):
         if evt.merge_request is not None:
-            print("username. GitlabCommentEvent  Merge")
             if evt.merge_request.assignee is not None and evt.merge_request.assignee.id == userid:  
-                print("username. GitlabCommentEvent  Merge  assignee ")
                 inside =True
         if evt.issue is not None:
             if evt.issue.author_id == userid: 
-                print("userid. GitlabCommentEvent  issue author")
                 inside =True
             if evt.issue.assignee_id is not None and  evt.issue.assignee_id == userid: 
-                print("userid. GitlabCommentEvent  issue assignee ")
                 inside =True
             if evt.issue.assignee_ids is not None and  userid in evt.issue.assignee_ids : 
-                print("userid. GitlabCommentEvent  issue assignees ")
                 inside =True
         if evt.snippet is not None and evt.snippet.author_id == userid:
-            print("userid. GitlabCommentEvent  snippet")
             inside =True
     
     return inside
@@ -984,27 +975,20 @@ def is_username_in_event(evt: GitlabEventType, username:str|None):
     inside = False
     if hasattr(evt, 'user') and isinstance(evt.user, GitlabUser):
         if evt.user.username is not None and evt.user.username == username:   
-            print("user_name. Direct user")
             inside = True
     if isinstance(evt, (GitlabIssueEvent)) and evt.assignees is not None:
         if any(user.username == username for user in evt.assignees):
-            print("username. GitlabIssueEvent assignees")
             inside =True
     if isinstance(evt, (GitlabPushEvent)) and evt.user_username is not None and evt.user_username == username:
-        print("username. GitlabPushEvent ")
         inside =True
     if isinstance(evt, (GitlabCommentEvent)):
         if evt.merge_request is not None:
-            print("username. GitlabCommentEvent  Merge")
             if evt.merge_request.assignee is not None and evt.merge_request.assignee.username == username:  
-                print("username. GitlabCommentEvent  Merge  assignee ")
                 inside =True
             if evt.merge_request.last_commit.author is not None and evt.merge_request.last_commit.author.name == username:  
-                print("username. GitlabCommentEvent  Merge  last_commit.author")
                 inside =True
         if evt.commit is not None:
             if evt.commit.author is not None and evt.commit.author.name == username:  
-                print("username. GitlabCommentEvent  commit commit.author")
                 inside =True
     
     return inside
