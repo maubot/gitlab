@@ -901,6 +901,32 @@ class GitlabJobEvent(SerializableAttrs, GitlabEvent):
     def build_url(self) -> str:
         return f"{self.repository.homepage}/-/jobs/{self.build_id}"
 
+@dataclass
+class GitlabDeploymentEvent(SerializableAttrs, GitlabEvent):
+    object_kind: str
+    status: str
+    status_changed_at: str
+    deployment_id: int
+    deployable_id: int
+    deployable_url: str
+    environment: str
+    environment_tier: str
+    environment_slug: str
+    environment_external_url: str
+    project: GitlabProject
+    short_sha: str
+    user: GitlabUser
+    user_url: str
+    commit_url: str
+    commit_title: str
+
+    def preprocess(self) -> List['GitlabDeploymentEvent']:
+        # Any preprocessing steps if needed
+        return [self]
+
+    @property
+    def template_name(self) -> str:
+        return "deployment"
 
 GitlabEventType = Union[Type[GitlabPushEvent],
                         Type[GitlabIssueEvent],
@@ -908,7 +934,8 @@ GitlabEventType = Union[Type[GitlabPushEvent],
                         Type[GitlabMergeRequestEvent],
                         Type[GitlabWikiPageEvent],
                         Type[GitlabPipelineEvent],
-                        Type[GitlabJobEvent]]
+                        Type[GitlabJobEvent],
+                        Type[GitlabDeploymentEvent]]
 
 EventParse: Dict[str, GitlabEventType] = {
     "Push Hook": GitlabPushEvent,
@@ -920,7 +947,8 @@ EventParse: Dict[str, GitlabEventType] = {
     "Merge Request Hook": GitlabMergeRequestEvent,
     "Wiki Page Hook": GitlabWikiPageEvent,
     "Pipeline Hook": GitlabPipelineEvent,
-    "Job Hook": GitlabJobEvent
+    "Job Hook": GitlabJobEvent,
+    "Deployment Hook": GitlabDeploymentEvent
 }
 
 OTHER_ENUMS = {

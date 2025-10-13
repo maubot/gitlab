@@ -1,0 +1,8 @@
+
+Deployment Notification:
+- Project: {{ event.project.name }}
+- Environment: {{ event.environment }}
+- Status: {{ event.status }}
+- Committed by: {{ event.user.name }} ({{ event.user.username }})
+- Commit: {{ event.commit_title }} ({{ event.commit_url }})
+- Deployed to: {{ event.environment_external_url }}
