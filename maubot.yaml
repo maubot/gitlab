@@ -18,4 +18,5 @@ soft_dependencies:
 
 webapp: true
 database: true
+database_type: asyncpg
 config: true

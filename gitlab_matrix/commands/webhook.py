@@ -34,7 +34,7 @@ class CommandWebhook(Command):
     @with_gitlab_session
     async def webhook_add(self, evt: MessageEvent, repo: str, gl: Gl) -> None:
         token = secrets.token_urlsafe(64)
-        self.bot.db.add_webhook_room(token, evt.room_id)
+        await self.bot.db.add_webhook_room(token, evt.room_id)
         project = gl.projects.get(repo)
         hook = project.hooks.create({
             "url": f"{self.bot.webapp_url}/webhooks",

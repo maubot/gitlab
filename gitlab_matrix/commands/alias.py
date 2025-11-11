@@ -29,18 +29,20 @@ class CommandAlias(Command):
     @command.argument("url", "server URL")
     @command.argument("alias", "server alias")
     async def alias_add(self, evt: MessageEvent, url: str, alias: str) -> None:
-        if url not in self.bot.db.get_servers(evt.sender):
+        servers = await self.bot.db.get_servers(evt.sender)
+        if url not in servers:
             await evt.reply("You can't add an alias to a GitLab server you are not logged in to.")
             return
-        if self.bot.db.has_alias(evt.sender, alias):
+        has_alias = await self.bot.db.has_alias(evt.sender, alias)
+        if has_alias:
             await evt.reply("Alias already in use.")
             return
-        self.bot.db.add_alias(evt.sender, url, alias)
+        await self.bot.db.add_alias(evt.sender, url, alias)
         await evt.reply(f"Added alias {alias} to server {url}")
 
     @alias.subcommand("list", aliases=("l", "ls"), help="Show your Gitlab server aliases.")
     async def alias_list(self, evt: MessageEvent) -> None:
-        aliases = self.bot.db.get_aliases(evt.sender)
+        aliases = await self.bot.db.get_aliases(evt.sender)
         if not aliases:
             await evt.reply("You don't have any aliases.")
             return
@@ -52,5 +54,5 @@ class CommandAlias(Command):
                       help="Remove a alias to a Gitlab server.")
     @command.argument("alias", "server alias")
     async def alias_rm(self, evt: MessageEvent, alias: str) -> None:
-        self.bot.db.rm_alias(evt.sender, alias)
+        await self.bot.db.rm_alias(evt.sender, alias)
         await evt.reply(f"Removed alias {alias}.")

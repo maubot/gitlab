@@ -17,23 +17,25 @@
 from typing import Type
 
 from mautrix.util.config import BaseProxyConfig
+from mautrix.util.async_db import UpgradeTable
 from maubot import Plugin
 
-from .db import Database
+from .db import DBManager
 from .util import Config
 from .webhook import GitlabWebhook
 from .commands import GitlabCommands
+from .migrations import upgrade_table
 
 
 class GitlabBot(Plugin):
-    db: Database
+    db: DBManager
     webhook: GitlabWebhook
     commands: GitlabCommands
 
     async def start(self) -> None:
         self.config.load_and_update()
 
-        self.db = Database(self.database)
+        self.db = DBManager(self.database)
         self.webhook = await GitlabWebhook(self).start()
         self.commands = GitlabCommands(self)
 
@@ -46,3 +48,7 @@ class GitlabBot(Plugin):
     @classmethod
     def get_config_class(cls) -> Type[BaseProxyConfig]:
         return Config
+
+    @classmethod
+    def get_db_upgrade_table(cls) -> UpgradeTable:
+        return upgrade_table

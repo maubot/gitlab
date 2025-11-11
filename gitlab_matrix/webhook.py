@@ -29,7 +29,7 @@ from mautrix.types import (EventType, RoomID, StateEvent, Membership, MessageTyp
 from mautrix.util.formatter import parse_html
 from maubot.handlers import web, event
 
-from .types import GitlabJobEvent, EventParse, Action, OTHER_ENUMS
+from .types import GitlabJobEvent, EventParse, Action, BuildStatus, OTHER_ENUMS
 from .util import TemplateManager, TemplateUtil
 
 if TYPE_CHECKING:
@@ -77,7 +77,7 @@ class GitlabWebhook:
                                      "Did you forget the ?room query parameter?\n",
                                 status=400)
         else:
-            room_id = self.bot.db.get_webhook_room(token)
+            room_id = await self.bot.db.get_webhook_room(token)
             if not room_id:
                 return Response(text="401: Unauthorized\n", status=401)
 
@@ -131,6 +131,9 @@ class GitlabWebhook:
 
         was_manually_handled = True
         if isinstance(evt, GitlabJobEvent):
+            if self.bot.config["notify_only_on_failure"] and evt.build_status != BuildStatus.FAILED:
+                return
+
             await self.handle_job_event(evt, evt_type, room_id)
         else:
             was_manually_handled = False
@@ -177,15 +180,16 @@ class GitlabWebhook:
             }
             content["com.beeper.linkpreviews"] = []
 
-            edit_evt = self.bot.db.get_event(subevt.message_id, room_id)
+            edit_evt = await self.bot.db.get_event(subevt.message_id, room_id)
             if edit_evt:
                 content.set_edit(edit_evt)
-            event_id = await self.bot.client.send_message(room_id, content)
-            if not edit_evt and subevt.message_id:
-                self.bot.db.put_event(subevt.message_id, room_id, event_id)
+            event_id = await self.bot.client.send_message(room_id, content, retry_count=5)
+
+            if not edit_evt and subevt.message_id and event_id:
+                await self.bot.db.put_event(subevt.message_id, room_id, event_id)
 
     async def handle_job_event(self, evt: GitlabJobEvent, evt_type: str, room_id: RoomID) -> None:
-        push_evt = self.bot.db.get_event(evt.push_id, room_id)
+        push_evt = await self.bot.db.get_event(evt.push_id, room_id)
         if not push_evt:
             self.bot.log.debug(f"No message found to react to push {evt.push_id}")
             return
@@ -201,11 +205,13 @@ class GitlabWebhook:
             **evt.meta,
         }
 
-        prev_reaction = self.bot.db.get_event(evt.reaction_id, room_id)
+        prev_reaction = await self.bot.db.get_event(evt.reaction_id, room_id)
         if prev_reaction:
-            await self.bot.client.redact(room_id, prev_reaction)
-        event_id = await self.bot.client.send_message_event(room_id, EventType.REACTION, reaction)
-        self.bot.db.put_event(evt.reaction_id, room_id, event_id, merge=prev_reaction is not None)
+            await self.bot.client.redact(room_id, prev_reaction, retry_count=5)
+
+        event_id = await self.bot.client.send_message_event(room_id, EventType.REACTION, reaction, retry_count=5)
+        if event_id:
+            await self.bot.db.put_event(evt.reaction_id, room_id, event_id)
 
     @event.on(EventType.ROOM_MEMBER)
     async def member_handler(self, evt: StateEvent) -> None:
