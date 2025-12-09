@@ -28,3 +28,4 @@ class Config(BaseProxyConfig):
         helper.copy("base_command")
         helper.copy("send_as_notice")
         helper.copy("time_format")
+        helper.copy("hide_details")
