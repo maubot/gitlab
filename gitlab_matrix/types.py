@@ -253,6 +253,12 @@ class GitlabAssigneeChanges(GitlabChangeWrapper, SerializableAttrs):
 
 
 @dataclass
+class GitlabReviewersChanges(GitlabChangeWrapper, SerializableAttrs):
+    previous: List[GitlabUser]
+    current: List[GitlabUser]
+
+
+@dataclass
 class GitlabLabelChanges(GitlabChangeWrapper, SerializableAttrs):
     previous: List[GitlabLabel]
     current: List[GitlabLabel]
@@ -290,6 +296,7 @@ class GitlabChanges(SerializableAttrs):
     title: Optional[GitlabStringChange] = None
     labels: Optional[GitlabLabelChanges] = None
     assignees: Optional[GitlabAssigneeChanges] = None
+    reviewers: Optional[GitlabReviewersChanges] = None
     time_estimate: Optional[GitlabIntChange] = None
     total_time_spent: Optional[GitlabIntChange] = None
     weight: Optional[GitlabIntChange] = None
