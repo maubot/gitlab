@@ -14,15 +14,20 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from typing import List, Union, Dict, Optional, Type, NewType, ClassVar, Tuple, Iterable
 from datetime import datetime
+from typing import ClassVar, Dict, Iterable, List, NewType, Optional, Tuple, Type, Union
 
-from jinja2 import TemplateNotFound
-from attr import dataclass
-from yarl import URL
 import attr
-
-from mautrix.types import JSON, ExtensibleEnum, SerializableAttrs, serializer, deserializer
+from attr import dataclass
+from jinja2 import TemplateNotFound
+from mautrix.types import (
+    JSON,
+    ExtensibleEnum,
+    SerializableAttrs,
+    deserializer,
+    serializer,
+)
+from yarl import URL
 
 from .util import contrast, hex_to_rgb
 
@@ -929,3 +934,58 @@ OTHER_ENUMS = {
     "BuildStatus": BuildStatus,
     "FailureReason": FailureReason,
 }
+
+@dataclass
+class UserFilter(SerializableAttrs):
+    user_id: Optional[int]
+    user_name: Optional[str] 
+
+
+def is_userid_in_event(evt: GitlabEventType, userid:int|None):
+    if userid is None:
+        return False
+    if hasattr(evt, 'user') and isinstance(evt.user, GitlabUser):
+        if evt.user.id is not None and evt.user.id == userid:   
+            return True
+    if isinstance(evt, (GitlabIssueEvent)) and evt.assignees is not None:
+        if any(user.id == userid for user in evt.assignees):
+            return True
+    if isinstance(evt, (GitlabPushEvent)) and evt.user_id is not None and evt.user_id == userid:
+        return True
+    if isinstance(evt, (GitlabCommentEvent)):
+        if evt.merge_request is not None:
+            if evt.merge_request.assignee is not None and evt.merge_request.assignee.id == userid:  
+                return True
+        if evt.issue is not None:
+            if evt.issue.author_id == userid: 
+                return True
+            if evt.issue.assignee_id is not None and  evt.issue.assignee_id == userid: 
+                return True
+            if evt.issue.assignee_ids is not None and  userid in evt.issue.assignee_ids : 
+                return True
+        if evt.snippet is not None and evt.snippet.author_id == userid:
+            return True
+    
+    return False
+
+def is_username_in_event(evt: GitlabEventType, username:str|None):
+    if username is None:
+        return False
+    if hasattr(evt, 'user') and isinstance(evt.user, GitlabUser):
+        if evt.user.username is not None and evt.user.username == username:   
+            return True
+    if isinstance(evt, (GitlabIssueEvent)) and evt.assignees is not None:
+        if any(user.username == username for user in evt.assignees):
+            return True
+    if isinstance(evt, (GitlabPushEvent)) and evt.user_username is not None and evt.user_username == username:
+        return True
+    if isinstance(evt, (GitlabCommentEvent)):
+        if evt.merge_request is not None:
+            if evt.merge_request.assignee is not None and evt.merge_request.assignee.username == username:  
+                return True
+            if evt.merge_request.last_commit.author is not None and evt.merge_request.last_commit.author.name == username:  
+                return True
+        if evt.commit is not None:
+            if evt.commit.author is not None and evt.commit.author.name == username:  
+                return True
+    return False

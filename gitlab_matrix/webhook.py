@@ -1,6 +1,6 @@
 # gitlab - A GitLab client and webhook receiver for maubot
 # Copyright (C) 2019 Lorenz Steinert
-# Copyright (C) 2021 Tulir Asokan
+# opyright (C) 2021 Tulir Asokan
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -14,22 +14,39 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import json
-from typing import List, Set, TYPE_CHECKING
-from asyncio import Task
 import asyncio
+import json
 import re
-
+from typing import List, Set
+from typing import TYPE_CHECKING
+from asyncio import Task
 import attr
-from jinja2 import TemplateNotFound
-from aiohttp.web import Response, Request
-
-from mautrix.types import (EventType, RoomID, StateEvent, Membership, MessageType, JSON,
-                           TextMessageEventContent, Format, ReactionEventContent, RelationType)
-from mautrix.util.formatter import parse_html
 from maubot.handlers import web, event
+from aiohttp.web import Request, Response
+from jinja2 import TemplateNotFound
+from mautrix.types import (
+    JSON,
+    EventType,
+    Format,
+    Membership,
+    MessageType,
+    ReactionEventContent,
+    RelationType,
+    RoomID,
+    StateEvent,
+    TextMessageEventContent,
+)
+from mautrix.util.formatter import parse_html
 
-from .types import GitlabJobEvent, EventParse, Action, OTHER_ENUMS
+from .types import (
+    OTHER_ENUMS,
+    Action,
+    EventParse,
+    GitlabJobEvent,
+    UserFilter,
+    is_userid_in_event,
+    is_username_in_event,
+)
 from .util import TemplateManager, TemplateUtil
 
 if TYPE_CHECKING:
@@ -69,6 +86,9 @@ class GitlabWebhook:
         except KeyError:
             return Response(text="401: Unauthorized\n"
                                  "Missing auth token header\n", status=401)
+
+        user_filter : str | None = None
+        userid_filter: int | None = None
         if token == self.bot.config["secret"]:
             try:
                 room_id = RoomID(request.query["room"])
@@ -76,11 +96,25 @@ class GitlabWebhook:
                 return Response(text="400: Bad request\nNo room specified. "
                                      "Did you forget the ?room query parameter?\n",
                                 status=400)
+            try:
+                user_filter = request.query["username_filter"]
+                self.bot.log.trace(f"Query User name filter is {user_filter}")
+            except KeyError:
+                # user_filter is a optional query parameter, that will be ignored if it does not exist 
+                pass
+            try:
+                userid_filter = int(request.query["userid_filter"])
+                self.bot.log.trace(f"Query User id filter is {userid_filter}")
+            except KeyError:
+                # userid_filter is a optional query parameter, that will be ignored if it does not exist 
+                pass
+
         else:
             room_id = self.bot.db.get_webhook_room(token)
             if not room_id:
                 return Response(text="401: Unauthorized\n", status=401)
 
+        filter = UserFilter(user_name= user_filter,user_id = userid_filter)
         try:
             evt_type = request.headers["X-Gitlab-Event"]
         except KeyError:
@@ -107,14 +141,14 @@ class GitlabWebhook:
                             headers={"Accept": "application/json"})
 
         self.bot.log.trace("Accepted processing of %s", request.headers["X-Gitlab-Event"])
-        task = asyncio.create_task(self.try_process_hook(body, evt_type, room_id))
+        task = asyncio.create_task(self.try_process_hook(body, evt_type, room_id, filter))
         self.task_list += [task]
 
         return Response(status=202, text="202: Accepted\nWebhook processing started.\n")
 
-    async def try_process_hook(self, body: JSON, evt_type: str, room_id: RoomID) -> None:
+    async def try_process_hook(self, body: JSON, evt_type: str, room_id: RoomID, filter: UserFilter ) -> None:
         try:
-            await self.process_hook(body, evt_type, room_id)
+            await self.process_hook(body, evt_type, room_id, filter)
         except Exception:
             self.bot.log.warning("Failed to process webhook", exc_info=True)
         finally:
@@ -125,9 +159,17 @@ class GitlabWebhook:
             if task:
                 self.task_list.remove(task)
 
-    async def process_hook(self, body: JSON, evt_type: str, room_id: RoomID) -> None:
+    async def process_hook(self, body: JSON, evt_type: str, room_id: RoomID, filter: UserFilter) -> None:
         msgtype = MessageType.NOTICE if self.bot.config["send_as_notice"] else MessageType.TEXT
         evt = EventParse[evt_type].deserialize(body)
+
+        self.bot.log.trace(f" User id filter {filter.user_id} {filter.user_name}")
+        if filter.user_id is None and filter.user_name is None:
+            send_message = True
+            self.bot.log.trace(" User id filter is nothing")
+        else:
+            send_message = is_userid_in_event(evt, filter.user_id) | is_username_in_event(evt, filter.user_name) 
+            self.bot.log.trace(f" User id filter has info. {send_message}")
 
         was_manually_handled = True
         if isinstance(evt, GitlabJobEvent):
@@ -180,9 +222,10 @@ class GitlabWebhook:
             edit_evt = self.bot.db.get_event(subevt.message_id, room_id)
             if edit_evt:
                 content.set_edit(edit_evt)
-            event_id = await self.bot.client.send_message(room_id, content)
-            if not edit_evt and subevt.message_id:
-                self.bot.db.put_event(subevt.message_id, room_id, event_id)
+            if send_message:
+                event_id = await self.bot.client.send_message(room_id, content)
+                if not edit_evt and subevt.message_id:
+                    self.bot.db.put_event(subevt.message_id, room_id, event_id)
 
     async def handle_job_event(self, evt: GitlabJobEvent, evt_type: str, room_id: RoomID) -> None:
         push_evt = self.bot.db.get_event(evt.push_id, room_id)
