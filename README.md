@@ -62,7 +62,7 @@ Where
 - `${instance_path}` is the `path` defined in **Maubot Manager** > **Instances** > `my_gitlab_bot` > `path`
 - `${room_id}` is the Matrix room identifier as defined in its URL, or under **Room Settings** > **Advanced** > **Internal room identifier**
 
-Which gives for example, with the default configuration: <https://maubot.example.org/_matrix/maubot/plugin/my_gitlab_bot/webhooks?room=!XXXXXXXXXXXX>.
+Which gives for example, with the default configuration: <https://maubot.example.org/_matrix/maubot/plugin/my_gitlab_bot/webhooks?room=!XXXXXXXXXXXX:matrix.example.org>.
 
 Then configure the `secret` token as previously defined.
 
